@@ -1,0 +1,3 @@
+{
+  "extends": "@n8n-wht/config/tsconfig.base.json"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@n8n-wht/backend",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "scripts": {
+    "dev": "convex dev",
+    "dev:setup": "convex dev --configure --until-success"
+  },
+  "dependencies": {
+    "@convex-dev/better-auth": "catalog:",
+    "better-auth": "catalog:",
+    "convex": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@n8n-wht/config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "^6.0.2"
+  }
+}

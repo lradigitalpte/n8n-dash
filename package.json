@@ -1,0 +1,30 @@
+{
+  "name": "n8n-wht",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:native": "turbo -F native dev",
+    "dev:web": "turbo -F web dev",
+    "dev:server": "turbo -F @n8n-wht/backend dev",
+    "dev:setup": "turbo -F @n8n-wht/backend dev:setup"
+  },
+  "dependencies": {
+    "@n8n-wht/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@n8n-wht/config": "workspace:*",
+    "turbo": "^2.9.4",
+    "typescript": "^6.0.2",
+    "vercel": "^41.7.4"
+  },
+  "packageManager": "pnpm@10.28.2"
+}
