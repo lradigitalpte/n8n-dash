@@ -1,24 +1,11 @@
 "use client";
 
-import { api } from "@n8n-wht/backend/convex/_generated/api";
-import { Authenticated, AuthLoading, Unauthenticated, useQuery } from "convex/react";
+import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
 import { useState } from "react";
 
+import ChatInboxLive from "@/components/inbox/chat-inbox-live";
 import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
-import UserMenu from "@/components/user-menu";
-
-function DashboardContent() {
-  const privateData = useQuery(api.privateData.get);
-
-  return (
-    <div>
-      <h1>Dashboard</h1>
-      <p>privateData: {privateData?.message}</p>
-      <UserMenu />
-    </div>
-  );
-}
 
 export default function DashboardPage() {
   const [showSignIn, setShowSignIn] = useState(false);
@@ -26,17 +13,29 @@ export default function DashboardPage() {
   return (
     <>
       <Authenticated>
-        <DashboardContent />
+        <div className="flex h-full min-h-0 flex-1 flex-col">
+          <ChatInboxLive />
+        </div>
       </Authenticated>
       <Unauthenticated>
-        {showSignIn ? (
-          <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
-        ) : (
-          <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
-        )}
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-12">
+          <div className="w-full max-w-md space-y-2 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight">Agent inbox</h1>
+            <p className="text-sm text-muted-foreground">
+              Sign in to manage WhatsApp conversations, AI replies, and human takeover.
+            </p>
+          </div>
+          {showSignIn ? (
+            <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
+          ) : (
+            <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
+          )}
+        </div>
       </Unauthenticated>
       <AuthLoading>
-        <div>Loading...</div>
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          Loading…
+        </div>
       </AuthLoading>
     </>
   );

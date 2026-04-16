@@ -13,7 +13,12 @@
     "dev:native": "turbo -F native dev",
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F @n8n-wht/backend dev",
-    "dev:setup": "turbo -F @n8n-wht/backend dev:setup"
+    "dev:setup": "turbo -F @n8n-wht/backend dev:setup",
+    "convex": "pnpm --filter @n8n-wht/backend exec convex",
+    "convex:login": "pnpm --filter @n8n-wht/backend exec convex login",
+    "convex:dev": "pnpm --filter @n8n-wht/backend exec convex dev",
+    "convex:dev:once": "pnpm --filter @n8n-wht/backend exec convex dev --once",
+    "convex:codegen": "pnpm --filter @n8n-wht/backend exec convex codegen"
   },
   "dependencies": {
     "@n8n-wht/env": "workspace:*",

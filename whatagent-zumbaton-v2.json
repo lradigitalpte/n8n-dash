@@ -1,0 +1,1179 @@
+{
+  "name": "Zumbaton WhatsApp Bot v2 — Memory + Human Handover",
+  "nodes": [
+    {
+      "id": "trig",
+      "name": "Twilio WhatsApp Trigger",
+      "type": "n8n-nodes-base.twilioTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1400,
+        0
+      ],
+      "parameters": {
+        "updates": [
+          "com.twilio.messaging.inbound-message.received"
+        ]
+      },
+      "credentials": {
+        "twilioApi": {
+          "id": "credential-id",
+          "name": "twilioApi Credential"
+        }
+      }
+    },
+    {
+      "id": "norm",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1160,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "from",
+              "type": "string",
+              "value": "={{ ($json.data && $json.data.from) || $json.from || $json.From || ($json.payload && $json.payload.from) || '' }}"
+            },
+            {
+              "name": "to",
+              "type": "string",
+              "value": "={{ ($json.data && $json.data.to) || $json.to || $json.To || ($json.payload && $json.payload.to) || '' }}"
+            },
+            {
+              "name": "body",
+              "type": "string",
+              "value": "={{ ($json.data && $json.data.body) || $json.body || $json.Body || ($json.payload && $json.payload.body) || '' }}"
+            },
+            {
+              "name": "numMedia",
+              "type": "number",
+              "value": "={{ Number(($json.data && $json.data.numMedia) || $json.numMedia || $json.NumMedia || ($json.payload && $json.payload.numMedia) || 0) }}"
+            },
+            {
+              "name": "mediaContentType0",
+              "type": "string",
+              "value": "={{ (($json.data && $json.data.mediaContentType0) || $json.mediaContentType0 || ($json.payload && $json.payload.mediaContentType0) || '').toLowerCase() }}"
+            },
+            {
+              "name": "convexSiteBase",
+              "type": "string",
+              "value": "https://fantastic-wolverine-819.eu-west-1.convex.site"
+            },
+            {
+              "name": "botSecret",
+              "type": "string",
+              "value": "PASTE_CONVEX_WHATSAPP_BOT_HTTP_SECRET_HERE"
+            },
+            {
+              "name": "defaultLeadOrgId",
+              "type": "string",
+              "value": "org_zumbaton"
+            },
+            {
+              "name": "ownerPhoneNumber",
+              "type": "string",
+              "value": "+233205485397"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "get_status",
+      "name": "Get Conversation Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -920,
+        0
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "GET",
+        "url": "={{ ($('Normalize Input').item.json.convexSiteBase || '').replace(/\\/$/, '') }}/getStatus",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $json.from }}"
+            },
+            {
+              "name": "orgId",
+              "value": "={{ $('Normalize Input').item.json.defaultLeadOrgId || 'org_zumbaton' }}"
+            },
+            {
+              "name": "secret",
+              "value": "={{ $('Normalize Input').item.json.botSecret }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "is_ht",
+      "name": "Human Takeover Active?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -680,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "human_takeover"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ht_reply",
+      "name": "Set HT Reply",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -440,
+        -220
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "reply",
+              "type": "string",
+              "value": "Our team is handling your chat — they'll be with you very shortly 👋"
+            },
+            {
+              "name": "from",
+              "type": "string",
+              "value": "={{ $('Normalize Input').item.json.from }}"
+            },
+            {
+              "name": "to",
+              "type": "string",
+              "value": "={{ $('Normalize Input').item.json.to }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send_wa_ht",
+      "name": "Send WA — HT Active",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "disabled": true,
+      "position": [
+        -200,
+        -220
+      ],
+      "parameters": {
+        "to": "={{ $json.from.replace('whatsapp:', '') }}",
+        "from": "={{ $json.to.replace('whatsapp:', '') }}",
+        "message": "={{ $json.reply }}",
+        "toWhatsapp": true,
+        "options": {}
+      },
+      "credentials": {
+        "twilioApi": {
+          "id": "credential-id",
+          "name": "twilioApi Credential"
+        }
+      }
+    },
+    {
+      "id": "save_ht_msgs",
+      "name": "Save HT Message to Convex",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -200,
+        -120
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($('Normalize Input').item.json.convexSiteBase || '').replace(/\\/$/, '') }}/saveMessages",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ orgId: $('Normalize Input').item.json.defaultLeadOrgId || 'org_zumbaton', phone: $('Normalize Input').item.json.from, userMessage: $('Normalize Input').item.json.body || '', botReply: '', secret: $('Normalize Input').item.json.botSecret }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "has_media",
+      "name": "Has Media?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -440,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Normalize Input').item.json.numMedia }}",
+              "operator": {
+                "type": "number",
+                "operation": "larger"
+              },
+              "rightValue": 0
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "media_router",
+      "name": "Media Type Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -200,
+        300
+      ],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $('Normalize Input').item.json.mediaContentType0 }}",
+        "rules": {
+          "values": [
+            {
+              "operation": "contains",
+              "value2": "audio/"
+            },
+            {
+              "operation": "contains",
+              "value2": "image/"
+            }
+          ]
+        },
+        "fallbackOutput": 2
+      }
+    },
+    {
+      "id": "voice_fb",
+      "name": "Voice Fallback",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        60,
+        200
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "reply",
+              "type": "string",
+              "value": "Got your voice note! 🎙️ Voice transcription is coming soon — for now, please send your question as text and I'll help you right away."
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "image_fb",
+      "name": "Image Fallback",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        60,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "reply",
+              "type": "string",
+              "value": "Thanks for the image! 📸 I can't read images just yet — please drop your question as text and I'll get right back to you!"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "generic_fb",
+      "name": "Generic Fallback",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        60,
+        400
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "reply",
+              "type": "string",
+              "value": "Received your attachment! Please send your question as text for now and I'll help straight away 😊"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "attach_nums",
+      "name": "Attach Numbers — Media",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        320,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "reply",
+              "type": "string",
+              "value": "={{ $json.reply }}"
+            },
+            {
+              "name": "from",
+              "type": "string",
+              "value": "={{ $('Normalize Input').item.json.from }}"
+            },
+            {
+              "name": "to",
+              "type": "string",
+              "value": "={{ $('Normalize Input').item.json.to }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send_media",
+      "name": "Send WA — Media",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        580,
+        300
+      ],
+      "parameters": {
+        "to": "={{ $json.from.replace('whatsapp:', '') }}",
+        "from": "={{ $json.to.replace('whatsapp:', '') }}",
+        "message": "={{ $json.reply }}",
+        "toWhatsapp": true,
+        "options": {}
+      },
+      "credentials": {
+        "twilioApi": {
+          "id": "credential-id",
+          "name": "twilioApi Credential"
+        }
+      }
+    },
+    {
+      "id": "load_hist",
+      "name": "Load History from Convex",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -200,
+        100
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "GET",
+        "url": "={{ ($('Normalize Input').item.json.convexSiteBase || '').replace(/\\/$/, '') }}/getHistory",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $('Normalize Input').item.json.from }}"
+            },
+            {
+              "name": "orgId",
+              "value": "={{ $('Normalize Input').item.json.defaultLeadOrgId || 'org_zumbaton' }}"
+            },
+            {
+              "name": "limit",
+              "value": "12"
+            },
+            {
+              "name": "secret",
+              "value": "={{ $('Normalize Input').item.json.botSecret }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "search_kb",
+      "name": "Search KB from Convex",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -40,
+        100
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "GET",
+        "url": "={{ ($('Normalize Input').item.json.convexSiteBase || '').replace(/\\/$/, '') }}/searchKB",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "orgId",
+              "value": "={{ $('Normalize Input').item.json.defaultLeadOrgId || 'org_zumbaton' }}"
+            },
+            {
+              "name": "query",
+              "value": "={{ ($('Normalize Input').item.json.body || 'classes schedule pricing trial').substring(0, 500) }}"
+            },
+            {
+              "name": "limit",
+              "value": "4"
+            },
+            {
+              "name": "secret",
+              "value": "={{ $('Normalize Input').item.json.botSecret }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "build_prompt",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// Token-aware prompt: caps history depth, message length, and KB size (tune numbers below).\nvar MAX_HISTORY_TURNS = 12;\nvar MAX_CHARS_PER_LINE = 450;\nvar KB_MAX_CHUNKS = 4;\nvar KB_MAX_CHARS_PER_CHUNK = 1000;\n\nvar trigger = $('Normalize Input').item.json;\nvar msg = trigger.body || '';\nvar histData = $('Load History from Convex').item.json;\nvar messages = (histData && Array.isArray(histData.messages)) ? histData.messages : [];\n\n// Convex /searchKB returns { chunks: [...] }. Also handle n8n splitting legacy array responses into many items.\nvar kbRaw = $('Search KB from Convex').item.json;\nvar kbChunks = [];\nif (kbRaw && Array.isArray(kbRaw.chunks)) {\n  kbChunks = kbRaw.chunks;\n} else if (Array.isArray(kbRaw)) {\n  kbChunks = kbRaw;\n} else if (kbRaw && Array.isArray(kbRaw.data)) {\n  kbChunks = kbRaw.data;\n} else {\n  try {\n    var kbItems = $('Search KB from Convex').all();\n    if (kbItems && kbItems.length > 0) {\n      kbChunks = kbItems.map(function (i) {\n        return i.json;\n      }).filter(function (j) {\n        return j && (j.content !== undefined || j.title);\n      });\n    }\n  } catch (e) {\n    kbChunks = [];\n  }\n}\nif (kbChunks.length > KB_MAX_CHUNKS) {\n  kbChunks = kbChunks.slice(0, KB_MAX_CHUNKS);\n}\n\nvar kbContext = '';\nif (kbChunks.length > 0) {\n  kbContext = '\\n\\nRELEVANT KNOWLEDGE (from Convex database):\\n';\n  kbChunks.forEach(function(item) {\n    var body = (item.content || '');\n    if (body.length > KB_MAX_CHARS_PER_CHUNK) {\n      body = body.substring(0, KB_MAX_CHARS_PER_CHUNK) + '…';\n    }\n    kbContext += '--- ' + (item.title || 'Fact') + ' ---\\n' + body + '\\n\\n';\n  });\n}\n\nvar recent = messages.slice(-MAX_HISTORY_TURNS);\nvar historySection = '';\nif (recent.length > 0) {\n  historySection = '\\n\\nCONVERSATION SO FAR:\\n';\n  recent.forEach(function(m) {\n    var label = (m.role === 'user') ? 'Them' : 'You (Ash)';\n    var line = (m.content || '');\n    if (line.length > MAX_CHARS_PER_LINE) {\n      line = line.substring(0, MAX_CHARS_PER_LINE) + '…';\n    }\n    historySection += label + ': ' + line + '\\n';\n  });\n}\n\nif (msg.length > MAX_CHARS_PER_LINE) {\n  msg = msg.substring(0, MAX_CHARS_PER_LINE) + '…';\n}\n\nvar factRules = 'FACTS: Use RELEVANT KNOWLEDGE above for prices, schedule, address, and class names. If missing there, say you are not sure and point to zumbaton.sg — do not invent numbers.\\n';\n\nvar leadRule = 'LEAD CAPTURE — THIS IS THE MOST IMPORTANT RULE:\\n- If user shows any interest in joining, signing up, registering, booking a class, or trying Zumbaton → ask them warmly for their full name, email, and phone number all in one message. Example: Awesome, so excited to have you! To get you all set up, just drop your full name, email address, and phone number in one message and I will take care of the rest!\\n- If the user message contains an email address (format: word@domain.something) → they are sharing their contact details. Extract name, email, phone from their message. If any piece is missing ask for just that missing piece.\\n- Once you have name + email + phone → output EXACTLY this at the very start of your reply before any other text: [LEAD]{\"name\":\"THEIR_NAME\",\"email\":\"THEIR_EMAIL\",\"phone\":\"THEIR_PHONE\"}[/LEAD] then on a new line write a warm confirmation: You are all set [Name]! Our team will reach out to confirm your first class. Check the schedule at zumbaton.sg/schedule to pick a time. Cannot wait to see you on the dance floor!\\n- The [LEAD] tag is completely invisible to the user — do not mention it ever.\\n- Never invent contact details. Only use what the user actually provided.';\n\nvar system = 'You are Ash, the WhatsApp rep for Zumbaton dance studio in Singapore. You are that one friend who works at the studio — fun, a little cheeky, genuinely warm. You text like a real person, not a help desk.\\n\\nPERSONALITY & VIBE (this is the most important section):\\n- You are NOT a FAQ bot. You can laugh, joke around, and go off-topic for a moment before bringing it back naturally.\\n- If someone is clearly joking or being playful, PLAY BACK. Do not pivot straight to \"here is how to book a class\" — that kills the vibe.\\n- If someone says \"lol\" or uses casual language, loosen up. Match their energy.\\n- Light banter is encouraged. You are allowed to be funny. Actually be funny, not \"haha!\" funny.\\n- Only bring it back to Zumbaton when it feels natural — not every single message needs a call to action.\\n- If someone goes completely off-topic (weather, life, random chat), roll with it briefly, then find a fun way back. Like: \"haha okay okay — anyway speaking of good energy, have you tried a class yet? 👀\"\\n- Short messages. Real texting. Not paragraphs. Not bullet lists for casual chat.\\n- Occasional emoji, not on every single sentence.\\n\\nEXAMPLES OF THE RIGHT VIBE:\\n- Someone: \"I\\'m tired\" → You: \"bro same 😭 that\\'s literally why people come to Zumbaton lol — they show up tired and leave weirdly energised. idk how it works but it does\"\\n- Someone jokes around → joke back first, THEN maybe mention Zumbaton if it flows naturally\\n- Someone: \"what\\'s the weather like\" → \"no idea but I\\'d say it\\'s perfect weather for dancing 😌 (I say that every day)\"\\n- Someone: \"lol ok\" → \"haha 😄 so what\\'s up, anything I can help with?\" — NOT a sales pitch\\n- Casual question about classes → answer like a friend, not a brochure\\n\\nACTUAL RULES (facts only):\\n- For Zumbaton facts (prices, address, schedule, class names) → use KNOWLEDGE section only, never invent\\n- Be honest when you don\\'t know exact details, point to the right page naturally\\n- When someone wants to sign up → collect their details (LEAD CAPTURE below)\\n- Keep messages short\\n\\n' + leadRule;\n\nvar prompt = system + '\\n\\nKNOWLEDGE:\\n' + factRules + kbContext + historySection + '\\n\\nLatest message from them: ' + msg;\n\nreturn [{ json: { prompt: prompt, from: trigger.from, to: trigger.to } }];\n"
+      }
+    },
+    {
+      "id": "llm_chain",
+      "name": "OpenRouter Chat",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        320,
+        100
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}"
+      }
+    },
+    {
+      "id": "llm_model",
+      "name": "OpenRouter Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        320,
+        260
+      ],
+      "parameters": {
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "credential-id",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "id": "process_reply",
+      "name": "Process Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        580,
+        100
+      ],
+      "parameters": {
+        "jsCode": "var response = $json;\nvar rawText = (response && response.text) ? response.text : 'Sorry, I could not respond right now. Please try again!';\nvar trigger = $('Normalize Input').item.json;\nvar tw = $('Twilio WhatsApp Trigger').first().json;\nvar fromFallback = (tw && tw.data && tw.data.from) || (tw && tw.from) || (tw && tw.From) || '';\nvar toFallback = (tw && tw.data && tw.data.to) || (tw && tw.to) || (tw && tw.To) || '';\nvar fromAddr = trigger.from || fromFallback;\nvar toAddr = trigger.to || toFallback;\nvar userMsg = trigger.body || '';\n\nvar reply = rawText;\nvar hasLead = false;\nvar leadName = '';\nvar leadEmail = '';\nvar leadPhone = '';\n\nvar leadMatch = rawText.match(/\\[LEAD\\]([\\s\\S]*?)\\[\\/LEAD\\]/);\nif (leadMatch) {\n  try {\n    var leadData = JSON.parse(leadMatch[1]);\n    leadName = leadData.name || '';\n    leadEmail = leadData.email || '';\n    leadPhone = leadData.phone || '';\n    hasLead = !!(leadEmail || leadName);\n    reply = rawText.replace(/\\[LEAD\\][\\s\\S]*?\\[\\/LEAD\\]/, '').trim();\n  } catch (e) {\n    reply = rawText.replace(/\\[LEAD\\][\\s\\S]*?\\[\\/LEAD\\]/, '').trim();\n  }\n}\n\nvar handoverKw = /\\b(speak to (someone|a human|an agent)|talk to (someone|a human|an agent)|real person|human agent|live agent|manager|supervisor|call me)\\b/i;\nvar stuckReplyKw = /\\b(i don't know|i do not know|not sure|can't help with that|cannot help with that|i'm unable to|i am unable to|please contact support|human can help|reach out to our team)\\b/i;\nvar frustrationKw = /\\b(not helping|you don't understand|you are not helping|this is useless|agent please|human please|stop|frustrat|angry|refund|complaint)\\b/i;\nvar isTooShort = (reply || '').trim().length < 15;\nvar needsHandover = handoverKw.test(userMsg) || stuckReplyKw.test(reply) || frustrationKw.test(userMsg) || isTooShort;\n\nreturn [{ json: { reply: reply, from: fromAddr, to: toAddr, hasLead: hasLead, leadName: leadName, leadEmail: leadEmail, leadPhone: leadPhone, whatsappNumber: fromAddr, needsHandover: needsHandover, userMsg: userMsg } }];"
+      }
+    },
+    {
+      "id": "save_msgs",
+      "name": "Save Messages to Convex",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        840,
+        100
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($('Normalize Input').item.json.convexSiteBase || '').replace(/\\/$/, '') }}/saveMessages",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ orgId: $('Normalize Input').item.json.defaultLeadOrgId || 'org_zumbaton', phone: $json.from || $('Normalize Input').item.json.from, userMessage: $json.userMsg, botReply: $json.reply, secret: $('Normalize Input').item.json.botSecret }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "lead_check",
+      "name": "Lead Captured?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Process Reply').item.json.hasLead }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "save_lead_convex",
+      "name": "Save Lead to Convex",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1360,
+        -80
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($('Normalize Input').item.json.convexSiteBase || '').replace(/\\/$/, '') }}/ingestLead",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ orgId: $('Normalize Input').item.json.defaultLeadOrgId || 'org_zumbaton', name: $('Process Reply').item.json.leadName, email: $('Process Reply').item.json.leadEmail, phone: $('Process Reply').item.json.leadPhone || $('Process Reply').item.json.whatsappNumber, notes: 'WhatsApp: ' + ($('Process Reply').item.json.whatsappNumber || ''), secret: $('Normalize Input').item.json.botSecret }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "send_email",
+      "name": "Send Lead Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1360,
+        -220
+      ],
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "FROM_EMAIL@yourdomain.com",
+        "toEmail": "STUDIO_EMAIL@example.com",
+        "subject": "=🎉 New Lead: {{ $('Process Reply').item.json.leadName }}",
+        "emailFormat": "text",
+        "text": "=New lead from Zumbaton WhatsApp Bot!\n\nName: {{ $('Process Reply').item.json.leadName }}\nEmail: {{ $('Process Reply').item.json.leadEmail }}\nPhone: {{ $('Process Reply').item.json.leadPhone }}\nWhatsApp: {{ $('Process Reply').item.json.whatsappNumber }}\nTime: {{ new Date().toISOString() }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "credential-id",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "id": "notify_lead_wa",
+      "name": "Notify Owner — New Lead",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        -360
+      ],
+      "parameters": {
+        "to": "={{ $('Normalize Input').item.json.ownerPhoneNumber }}",
+        "from": "={{ $('Normalize Input').item.json.to.replace('whatsapp:', '') }}",
+        "message": "=🎉 New Zumbaton lead!\n\nName: {{ $('Process Reply').item.json.leadName }}\nEmail: {{ $('Process Reply').item.json.leadEmail }}\nPhone: {{ $('Process Reply').item.json.leadPhone }}\nWhatsApp: {{ $('Process Reply').item.json.whatsappNumber }}",
+        "toWhatsapp": true,
+        "options": {}
+      },
+      "credentials": {
+        "twilioApi": {
+          "id": "credential-id",
+          "name": "twilioApi Credential"
+        }
+      }
+    },
+    {
+      "id": "set_lead_data",
+      "name": "Set Lead Send Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1640,
+        -80
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "reply",
+              "type": "string",
+              "value": "={{ $('Process Reply').item.json.reply }}"
+            },
+            {
+              "name": "from",
+              "type": "string",
+              "value": "={{ $('Process Reply').item.json.from }}"
+            },
+            {
+              "name": "to",
+              "type": "string",
+              "value": "={{ $('Process Reply').item.json.to }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send_wa_lead",
+      "name": "Send WA — Lead Confirmed",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        -80
+      ],
+      "parameters": {
+        "to": "={{ $json.from.replace('whatsapp:', '') }}",
+        "from": "={{ $json.to.replace('whatsapp:', '') }}",
+        "message": "={{ $json.reply }}",
+        "toWhatsapp": true,
+        "options": {}
+      },
+      "credentials": {
+        "twilioApi": {
+          "id": "credential-id",
+          "name": "twilioApi Credential"
+        }
+      }
+    },
+    {
+      "id": "ht_check",
+      "name": "Needs Handover?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1360,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Process Reply').item.json.needsHandover }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "set_status",
+      "name": "Set Handover Status in Convex",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1640,
+        80
+      ],
+      "disabled": true,
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($('Normalize Input').item.json.convexSiteBase || '').replace(/\\/$/, '') }}/setStatus",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ orgId: $('Normalize Input').item.json.defaultLeadOrgId || 'org_zumbaton', phone: $('Process Reply').item.json.from || $('Normalize Input').item.json.from, status: 'human_takeover', secret: $('Normalize Input').item.json.botSecret }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "notify_handover_wa",
+      "name": "Notify Owner — Handover",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1640,
+        -60
+      ],
+      "parameters": {
+        "to": "={{ $('Normalize Input').item.json.ownerPhoneNumber }}",
+        "from": "={{ $('Normalize Input').item.json.to.replace('whatsapp:', '') }}",
+        "message": "=🚨 Customer asked to speak with someone\n\n{{ $('Process Reply').item.json.whatsappNumber }}\n\nLast message: \"{{ $('Process Reply').item.json.userMsg }}\"\n\nThe bot is still chatting with them. Use your dashboard to start human takeover when you're ready.",
+        "toWhatsapp": true,
+        "options": {}
+      },
+      "credentials": {
+        "twilioApi": {
+          "id": "credential-id",
+          "name": "twilioApi Credential"
+        }
+      }
+    },
+    {
+      "id": "send_wa_handover",
+      "name": "Send WA — Handover",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        80
+      ],
+      "parameters": {
+        "to": "={{ ($('Process Reply').item.json.from || $('Normalize Input').item.json.from).replace('whatsapp:', '') }}",
+        "from": "={{ $('Normalize Input').item.json.to.replace('whatsapp:', '') }}",
+        "message": "={{ $('Process Reply').item.json.reply + \"\\n\\n\" + \"I've let our team know someone asked to speak with them — they can follow up when they're free. I'm still here if you want class times, pricing, or anything else in the meantime 😊\" }}",
+        "toWhatsapp": true,
+        "options": {}
+      },
+      "credentials": {
+        "twilioApi": {
+          "id": "credential-id",
+          "name": "twilioApi Credential"
+        }
+      }
+    },
+    {
+      "id": "send_wa_normal",
+      "name": "Send WA — Normal Reply",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1640,
+        320
+      ],
+      "parameters": {
+        "to": "={{ ($('Process Reply').item.json.from || $('Normalize Input').item.json.from).replace('whatsapp:', '') }}",
+        "from": "={{ $('Normalize Input').item.json.to.replace('whatsapp:', '') }}",
+        "message": "={{ $('Process Reply').item.json.reply }}",
+        "toWhatsapp": true,
+        "options": {}
+      },
+      "credentials": {
+        "twilioApi": {
+          "id": "credential-id",
+          "name": "twilioApi Credential"
+        }
+      }
+    },
+    {
+      "id": "note",
+      "name": "Sticky Note — v2 Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1440,
+        -700
+      ],
+      "parameters": {
+        "width": 3500,
+        "height": 320,
+        "color": 4,
+        "content": "ZUMBATON WHATSAPP BOT v2 — Memory + Human Handover + Notifications\n\n━━ CONFIG (node: Normalize Input) — no n8n Variables needed (Community Edition OK) ━━\n  convexSiteBase → full URL, e.g. https://fantastic-wolverine-819.eu-west-1.convex.site (no trailing slash)\n  botSecret → same value as Convex WHATSAPP_BOT_HTTP_SECRET (leave empty only if Convex also has no secret — dev only)\n  defaultLeadOrgId → org_zumbaton (or your org id for /dashboard filters)\n  ownerPhoneNumber → owner's WhatsApp E.164 WITHOUT whatsapp: prefix\n\n━━ HUMAN TAKEOVER ━━\n  Real human_takeover in Convex is started from the /dashboard only.\n  If a customer asks for a human, n8n pings the owner (Notify Owner) but does NOT set takeover — the bot keeps replying until you take over from the dashboard.\n  Node \"Set Handover Status in Convex\" is disabled; enable only if you want auto-takeover again.\n\n━━ OTHER PLACEHOLDERS ━━\n  FROM_EMAIL / STUDIO_EMAIL → SMTP Send Lead Email node\n\n━━ CREDENTIALS ━━\n  twilioApi · OpenRouter · SMTP\n\n━━ CONVEX ━━\n  Deploy: pnpm exec convex deploy\n  convex env set WHATSAPP_BOT_HTTP_SECRET (must match botSecret above in production)\n\n━━ FLOW ━━\n  Twilio → Normalize (config here) → Convex HTTP → LLM → save messages / ingest lead / email / WA\n  Vercel /dashboard/leads uses api.leads.list"
+      }
+    }
+  ],
+  "connections": {
+    "Twilio WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Get Conversation Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Conversation Status": {
+      "main": [
+        [
+          {
+            "node": "Human Takeover Active?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Takeover Active?": {
+      "main": [
+        [
+          {
+            "node": "Set HT Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has Media?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set HT Reply": {
+      "main": [
+        [
+          {
+            "node": "Save HT Message to Convex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save HT Message to Convex": {
+      "main": [
+        [
+          {
+            "node": "Send WA — HT Active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Media?": {
+      "main": [
+        [
+          {
+            "node": "Media Type Router",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Load History from Convex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Media Type Router": {
+      "main": [
+        [
+          {
+            "node": "Voice Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Image Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generic Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Voice Fallback": {
+      "main": [
+        [
+          {
+            "node": "Attach Numbers — Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Fallback": {
+      "main": [
+        [
+          {
+            "node": "Attach Numbers — Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generic Fallback": {
+      "main": [
+        [
+          {
+            "node": "Attach Numbers — Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach Numbers — Media": {
+      "main": [
+        [
+          {
+            "node": "Send WA — Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load History from Convex": {
+      "main": [
+        [
+          {
+            "node": "Search KB from Convex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenRouter Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "OpenRouter Chat",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat": {
+      "main": [
+        [
+          {
+            "node": "Process Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Reply": {
+      "main": [
+        [
+          {
+            "node": "Save Messages to Convex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Messages to Convex": {
+      "main": [
+        [
+          {
+            "node": "Lead Captured?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Captured?": {
+      "main": [
+        [
+          {
+            "node": "Save Lead to Convex",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Needs Handover?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Lead to Convex": {
+      "main": [
+        [
+          {
+            "node": "Send Lead Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Lead Email": {
+      "main": [
+        [
+          {
+            "node": "Notify Owner — New Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Owner — New Lead": {
+      "main": [
+        [
+          {
+            "node": "Set Lead Send Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Lead Send Data": {
+      "main": [
+        [
+          {
+            "node": "Send WA — Lead Confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Handover?": {
+      "main": [
+        [
+          {
+            "node": "Notify Owner — Handover",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send WA — Normal Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Handover Status in Convex": {
+      "main": [
+        []
+      ]
+    },
+    "Notify Owner — Handover": {
+      "main": [
+        [
+          {
+            "node": "Send WA — Handover",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search KB from Convex": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "pinData": {},
+  "meta": {
+    "instanceId": "whatagent-zumbaton-v2"
+  }
+}

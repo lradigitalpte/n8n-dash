@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "n8n-wht",
-  description: "n8n-wht",
+  title: "n8n-wht · Inbox",
+  description: "WhatsApp agent dashboard and inbox",
 };
 
 export default async function RootLayout({
@@ -32,9 +32,10 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers initialToken={token}>
-          <div className="grid grid-rows-[auto_1fr] h-svh">
+          {/* flex (not grid) so when <Header /> is null on /dashboard, <main> is the only flex child and fills the viewport */}
+          <div className="flex h-svh min-h-0 flex-col">
             <Header />
-            {children}
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</main>
           </div>
         </Providers>
       </body>
