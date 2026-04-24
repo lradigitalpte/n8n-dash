@@ -16,7 +16,7 @@ import {
   AlertCircle,
   Pencil
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 
 import LeadsPageBar from "@/components/dashboard/leads-page-bar";
@@ -58,7 +58,14 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 /* KB Content                                                                 */
 /* -------------------------------------------------------------------------- */
 function KBContent() {
-  const [orgId, setOrgId] = useState<string>(MOCK_ORGANIZATIONS[0]?.id ?? "org_zumbaton");
+  const organizations = useQuery(api.inbox.listOrganizations, {});
+  const fallbackOrganizations = useMemo(
+    () => MOCK_ORGANIZATIONS.map((org) => ({ id: org.id, name: org.name })),
+    [],
+  );
+  const orgOptions =
+    organizations && organizations.length > 0 ? organizations : fallbackOrganizations;
+  const [orgId, setOrgId] = useState<string>(orgOptions[0]?.id ?? "org_zumbaton");
   const [searchQuery, setSearchQuery] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [isScraping, setIsAddingScrape] = useState(false);
@@ -72,6 +79,12 @@ function KBContent() {
 
   const [scrapeUrl, setScrapeUrl] = useState("");
   const [isScrapingLoading, setIsScrapingLoading] = useState(false);
+
+  useEffect(() => {
+    if (!orgOptions.some((org) => org.id === orgId) && orgOptions.length > 0) {
+      setOrgId(orgOptions[0].id);
+    }
+  }, [orgId, orgOptions]);
 
   const filteredItems = useMemo(() => {
     if (!kbItems) return [];
@@ -140,13 +153,13 @@ function KBContent() {
                   <span className="flex min-w-0 items-center gap-2">
                     <Building2 className="size-4 shrink-0 text-muted-foreground" />
                     <span className="truncate text-sm">
-                      {MOCK_ORGANIZATIONS.find((o) => o.id === orgId)?.name ?? orgId}
+                      {orgOptions.find((o) => o.id === orgId)?.name ?? orgId}
                     </span>
                   </span>
                   <ChevronDown className="size-4 shrink-0 opacity-60" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[280px] rounded-xl bg-card p-1">
-                  {MOCK_ORGANIZATIONS.map((o) => (
+                  {orgOptions.map((o) => (
                     <DropdownMenuItem key={o.id} className="rounded-lg" onClick={() => setOrgId(o.id)}>
                       <Building2 className="mr-2 size-4" />
                       {o.name}
