@@ -10,12 +10,23 @@ import authConfig from "./auth.config";
 
 const siteUrl = process.env.SITE_URL!;
 
+/** Extra browser origins for Better Auth (e.g. local dev). Comma-separated, no spaces or trim each. */
+function additionalTrustedOrigins(): string[] {
+  const raw = process.env.ADDITIONAL_TRUSTED_ORIGINS;
+  if (!raw?.trim()) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export const authComponent = createClient<DataModel>(components.betterAuth);
 
 function createAuth(ctx: GenericCtx<DataModel>) {
+  const trustedOrigins = [siteUrl, ...additionalTrustedOrigins()];
   return betterAuth({
     baseURL: siteUrl,
-    trustedOrigins: [siteUrl],
+    trustedOrigins,
     database: authComponent.adapter(ctx),
     emailAndPassword: {
       enabled: true,

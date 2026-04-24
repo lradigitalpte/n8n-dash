@@ -4,7 +4,9 @@ import { api } from "@n8n-wht/backend/convex/_generated/api";
 import type { Doc } from "@n8n-wht/backend/convex/_generated/dataModel";
 import { Authenticated, AuthLoading, Unauthenticated, useMutation, useQuery, useAction } from "convex/react";
 import { 
+  Building2,
   BookOpen, 
+  ChevronDown,
   Plus, 
   Search, 
   Trash2, 
@@ -22,6 +24,12 @@ import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MOCK_ORGANIZATIONS } from "@/lib/inbox-mock-data";
@@ -50,7 +58,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 /* KB Content                                                                 */
 /* -------------------------------------------------------------------------- */
 function KBContent() {
-  const [orgId] = useState("org_zumbaton"); // Hardcoded for demo, should come from context
+  const [orgId, setOrgId] = useState<string>(MOCK_ORGANIZATIONS[0]?.id ?? "org_zumbaton");
   const [searchQuery, setSearchQuery] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [isScraping, setIsAddingScrape] = useState(false);
@@ -123,6 +131,29 @@ function KBContent() {
               </p>
             </div>
             <div className="flex gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="outline" className="h-9 min-w-[210px] justify-between gap-2 px-3" />
+                  }
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Building2 className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate text-sm">
+                      {MOCK_ORGANIZATIONS.find((o) => o.id === orgId)?.name ?? orgId}
+                    </span>
+                  </span>
+                  <ChevronDown className="size-4 shrink-0 opacity-60" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[280px] rounded-xl bg-card p-1">
+                  {MOCK_ORGANIZATIONS.map((o) => (
+                    <DropdownMenuItem key={o.id} className="rounded-lg" onClick={() => setOrgId(o.id)}>
+                      <Building2 className="mr-2 size-4" />
+                      {o.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="outline" onClick={() => setIsAddingScrape(true)}>
                 <Globe className="mr-2 size-4" />
                 Scrape Website

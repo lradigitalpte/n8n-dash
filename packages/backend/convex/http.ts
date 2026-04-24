@@ -9,6 +9,8 @@ const http = httpRouter();
 
 authComponent.registerRoutes(http, createAuth);
 
+const DEFAULT_ORG_ID = process.env.DEFAULT_LEAD_ORG_ID?.trim() || "org_zumbaton";
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -212,7 +214,7 @@ http.route({
     const orgId =
       typeof body.orgId === "string" && body.orgId.trim() !== ""
         ? body.orgId.trim()
-        : (process.env.DEFAULT_LEAD_ORG_ID?.trim() ?? "org_zumbaton");
+        : DEFAULT_ORG_ID;
     const name =
       typeof body.name === "string" ? body.name.trim() : "";
     const email =
@@ -246,7 +248,7 @@ http.route({
     }
     const url = new URL(request.url);
     const query = url.searchParams.get("query") ?? "";
-    const orgId = url.searchParams.get("orgId")?.trim() || "org_zumbaton";
+    const orgId = url.searchParams.get("orgId")?.trim() || DEFAULT_ORG_ID;
     const limitRaw = url.searchParams.get("limit");
     const limitParsed = limitRaw ? Number.parseInt(limitRaw, 10) : 5;
     const limit = Number.isFinite(limitParsed)

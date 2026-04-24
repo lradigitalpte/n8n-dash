@@ -78,6 +78,26 @@
               "name": "ownerPhoneNumber",
               "type": "string",
               "value": "+233205485397"
+            },
+            {
+              "name": "from_phone",
+              "type": "string",
+              "value": "={{ (($json.data && $json.data.from) || $json.from || $json.From || ($json.payload && $json.payload.from) || '').replace('whatsapp:', '') }}"
+            },
+            {
+              "name": "to_phone",
+              "type": "string",
+              "value": "={{ (($json.data && $json.data.to) || $json.to || $json.To || ($json.payload && $json.payload.to) || '').replace('whatsapp:', '') }}"
+            },
+            {
+              "name": "from_whatsapp",
+              "type": "string",
+              "value": "={{ 'whatsapp:' + ((($json.data && $json.data.from) || $json.from || $json.From || ($json.payload && $json.payload.from) || '').replace('whatsapp:', '')) }}"
+            },
+            {
+              "name": "to_whatsapp",
+              "type": "string",
+              "value": "={{ 'whatsapp:' + ((($json.data && $json.data.to) || $json.to || $json.To || ($json.payload && $json.payload.to) || '').replace('whatsapp:', '')) }}"
             }
           ]
         },
@@ -187,7 +207,7 @@
       ],
       "parameters": {
         "to": "={{ $json.from.replace('whatsapp:', '') }}",
-        "from": "={{ $json.to.replace('whatsapp:', '') }}",
+        "from": "={{ ($json.to || '').replace('whatsapp:', '') }}",
         "message": "={{ $json.reply }}",
         "toWhatsapp": true,
         "options": {}
@@ -381,7 +401,7 @@
       ],
       "parameters": {
         "to": "={{ $json.from.replace('whatsapp:', '') }}",
-        "from": "={{ $json.to.replace('whatsapp:', '') }}",
+        "from": "={{ ($json.to || '').replace('whatsapp:', '') }}",
         "message": "={{ $json.reply }}",
         "toWhatsapp": true,
         "options": {}
@@ -635,7 +655,7 @@
       ],
       "parameters": {
         "to": "={{ $('Normalize Input').item.json.ownerPhoneNumber }}",
-        "from": "={{ $('Normalize Input').item.json.to.replace('whatsapp:', '') }}",
+        "from": "={{ $('Normalize Input').item.json.to_phone }}",
         "message": "=🎉 New Zumbaton lead!\n\nName: {{ $('Process Reply').item.json.leadName }}\nEmail: {{ $('Process Reply').item.json.leadEmail }}\nPhone: {{ $('Process Reply').item.json.leadPhone }}\nWhatsApp: {{ $('Process Reply').item.json.whatsappNumber }}",
         "toWhatsapp": true,
         "options": {}
@@ -690,7 +710,7 @@
       ],
       "parameters": {
         "to": "={{ $json.from.replace('whatsapp:', '') }}",
-        "from": "={{ $json.to.replace('whatsapp:', '') }}",
+        "from": "={{ ($json.to || '').replace('whatsapp:', '') }}",
         "message": "={{ $json.reply }}",
         "toWhatsapp": true,
         "options": {}
@@ -761,7 +781,7 @@
       ],
       "parameters": {
         "to": "={{ $('Normalize Input').item.json.ownerPhoneNumber }}",
-        "from": "={{ $('Normalize Input').item.json.to.replace('whatsapp:', '') }}",
+        "from": "={{ $('Normalize Input').item.json.to_phone }}",
         "message": "=🚨 Customer asked to speak with someone\n\n{{ $('Process Reply').item.json.whatsappNumber }}\n\nLast message: \"{{ $('Process Reply').item.json.userMsg }}\"\n\nThe bot is still chatting with them. Use your dashboard to start human takeover when you're ready.",
         "toWhatsapp": true,
         "options": {}
@@ -784,7 +804,7 @@
       ],
       "parameters": {
         "to": "={{ ($('Process Reply').item.json.from || $('Normalize Input').item.json.from).replace('whatsapp:', '') }}",
-        "from": "={{ $('Normalize Input').item.json.to.replace('whatsapp:', '') }}",
+        "from": "={{ $('Normalize Input').item.json.to_phone }}",
         "message": "={{ $('Process Reply').item.json.reply + \"\\n\\n\" + \"I've let our team know someone asked to speak with them — they can follow up when they're free. I'm still here if you want class times, pricing, or anything else in the meantime 😊\" }}",
         "toWhatsapp": true,
         "options": {}
@@ -807,7 +827,7 @@
       ],
       "parameters": {
         "to": "={{ ($('Process Reply').item.json.from || $('Normalize Input').item.json.from).replace('whatsapp:', '') }}",
-        "from": "={{ $('Normalize Input').item.json.to.replace('whatsapp:', '') }}",
+        "from": "={{ $('Normalize Input').item.json.to_phone }}",
         "message": "={{ $('Process Reply').item.json.reply }}",
         "toWhatsapp": true,
         "options": {}
@@ -832,7 +852,7 @@
         "width": 3500,
         "height": 320,
         "color": 4,
-        "content": "ZUMBATON WHATSAPP BOT v2 — Memory + Human Handover + Notifications\n\n━━ CONFIG (node: Normalize Input) — no n8n Variables needed (Community Edition OK) ━━\n  convexSiteBase → full URL, e.g. https://fantastic-wolverine-819.eu-west-1.convex.site (no trailing slash)\n  botSecret → same value as Convex WHATSAPP_BOT_HTTP_SECRET (leave empty only if Convex also has no secret — dev only)\n  defaultLeadOrgId → org_zumbaton (or your org id for /dashboard filters)\n  ownerPhoneNumber → owner's WhatsApp E.164 WITHOUT whatsapp: prefix\n\n━━ HUMAN TAKEOVER ━━\n  Real human_takeover in Convex is started from the /dashboard only.\n  If a customer asks for a human, n8n pings the owner (Notify Owner) but does NOT set takeover — the bot keeps replying until you take over from the dashboard.\n  Node \"Set Handover Status in Convex\" is disabled; enable only if you want auto-takeover again.\n\n━━ OTHER PLACEHOLDERS ━━\n  FROM_EMAIL / STUDIO_EMAIL → SMTP Send Lead Email node\n\n━━ CREDENTIALS ━━\n  twilioApi · OpenRouter · SMTP\n\n━━ CONVEX ━━\n  Deploy: pnpm exec convex deploy\n  convex env set WHATSAPP_BOT_HTTP_SECRET (must match botSecret above in production)\n\n━━ FLOW ━━\n  Twilio → Normalize (config here) → Convex HTTP → LLM → save messages / ingest lead / email / WA\n  Vercel /dashboard/leads uses api.leads.list"
+        "content": "ZUMBATON WHATSAPP BOT v2 — Memory + Human Handover + Notifications\n\n━━ CONFIG (node: Normalize Input) — no n8n Variables needed (Community Edition OK) ━━\n  convexSiteBase → full URL, e.g. https://fantastic-wolverine-819.eu-west-1.convex.site (no trailing slash)\n  botSecret → same value as Convex WHATSAPP_BOT_HTTP_SECRET (leave empty only if Convex also has no secret — dev only)\n  defaultLeadOrgId → org_zumbaton (or your org id for /dashboard filters)\n  ownerPhoneNumber → owner's WhatsApp E.164 WITHOUT whatsapp: prefix\n\n━━ TWILIO WHATSAPP FORMAT RULE ━━\n  In Twilio send nodes, keep \"To Whatsapp\" enabled and use plain +E.164 for From/To (no whatsapp: prefix).\n\n━━ CREDENTIALS (IMPORTANT) ━━\n  Twilio trigger and all Twilio send nodes must use the SAME Twilio account that owns the WhatsApp sender.\n  If the sender is on another account/subaccount, sends fail even when number format is correct.\n\n━━ HUMAN TAKEOVER ━━\n  Real human_takeover in Convex is started from the /dashboard only.\n  If a customer asks for a human, n8n pings the owner (Notify Owner) but does NOT set takeover — the bot keeps replying until you take over from the dashboard.\n  Node \"Set Handover Status in Convex\" is disabled; enable only if you want auto-takeover again.\n\n━━ OTHER PLACEHOLDERS ━━\n  FROM_EMAIL / STUDIO_EMAIL → SMTP Send Lead Email node\n\n━━ CREDENTIALS ━━\n  twilioApi · OpenRouter · SMTP\n\n━━ CONVEX ━━\n  Deploy: pnpm exec convex deploy\n  convex env set WHATSAPP_BOT_HTTP_SECRET (must match botSecret above in production)\n\n━━ FLOW ━━\n  Twilio → Normalize (config here) → Convex HTTP → LLM → save messages / ingest lead / email / WA\n  Vercel /dashboard/leads uses api.leads.list"
       }
     }
   ],

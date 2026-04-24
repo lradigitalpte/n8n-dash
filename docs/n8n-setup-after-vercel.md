@@ -38,6 +38,14 @@ From `packages/backend` (or using the Convex dashboard **Environment Variables**
 pnpm exec convex env set SITE_URL "https://your-app.vercel.app"
 ```
 
+So production (e.g. `https://n8n-dash-web.vercel.app`) is the canonical **`SITE_URL`**. Local dev on `http://localhost:3001` will **not** work for sign-in unless you also allow that origin. Set **one** optional Convex env (comma-separated if you need several):
+
+```bash
+pnpm exec convex env set ADDITIONAL_TRUSTED_ORIGINS "http://localhost:3001"
+```
+
+Redeploy Convex after changing env (`pnpm exec convex deploy`). Remove or narrow `ADDITIONAL_TRUSTED_ORIGINS` if you do not need local dev against this deployment.
+
 Also ensure **`BETTER_AUTH_SECRET`** (32+ characters) is set on Convex if you have not already:
 
 ```bash

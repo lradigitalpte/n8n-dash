@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zumbaton WhatsApp Automation — Technical Overview</title>
+  <style type="text/css">
+    body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.45; color: #222; max-width: 900px; margin: 2em auto; padding: 0 1.5em; }
+    h1 { font-size: 20pt; border-bottom: 2px solid #333; padding-bottom: 0.3em; }
+    h2 { font-size: 14pt; margin-top: 1.4em; color: #111; }
+    h3 { font-size: 12pt; margin-top: 1em; }
+    p, li { margin: 0.5em 0; }
+    ul { padding-left: 1.4em; }
+    table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 10.5pt; }
+    th, td { border: 1px solid #666; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f0f0f0; font-weight: bold; }
+    code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 10pt; background: #f5f5f5; padding: 1px 4px; }
+    .note { background: #f8f8f8; border-left: 4px solid #444; padding: 10px 14px; margin: 1em 0; }
+    .diagram { font-family: Consolas, monospace; font-size: 9.5pt; background: #fafafa; padding: 12px; border: 1px solid #ccc; white-space: pre; overflow-x: auto; }
+    .muted { color: #555; font-size: 10pt; }
+    hr { border: none; border-top: 1px solid #ccc; margin: 2em 0; }
+  </style>
+</head>
+<body>
+
+<h1>Zumbaton WhatsApp Automation — Technical Documentation</h1>
+<p class="muted">Single-file overview for stakeholders and engineers. Open this file in <strong>Microsoft Word</strong> (File → Open) to edit or export to PDF. Last updated: April 2026.</p>
+
+<h2>1. Executive summary</h2>
+<p>This system connects <strong>Twilio WhatsApp</strong> to an AI assistant, persists conversations in <strong>Convex</strong>, and provides an operator <strong>dashboard</strong> (Next.js) for leads, knowledge base content, and optional <strong>human takeover</strong>. Orchestration runs in <strong>n8n</strong> (workflow automation). The dashboard is typically deployed on <strong>Vercel</strong>; Convex runs on <strong>Convex Cloud</strong>; n8n runs wherever Twilio can reach it (self-hosted, n8n Cloud, etc.).</p>
+
+<h2>2. High-level architecture</h2>
+<div class="diagram">Customer (WhatsApp)
+       │
+       ▼
+┌──────────────┐     webhook / trigger     ┌─────────────┐
+│   Twilio     │ ───────────────────────► │    n8n      │
+│  (Messaging) │                           │  workflows  │
+└──────────────┘                           └──────┬──────┘
+                                                  │
+                    HTTPS (.convex.site)          │
+                                                  ▼
+                                          ┌───────────────┐
+                                          │    Convex     │
+                                          │  DB + HTTP    │
+                                          │  + auth API   │
+                                          └───────┬───────┘
+                                                  │
+                    Convex client (WSS)           │
+                                                  ▼
+                                          ┌───────────────┐
+                                          │  Next.js app  │
+                                          │  (dashboard)  │
+                                          └───────────────┘
+                                                  │
+                                            Vercel (typical)</div>
+
+<table>
+  <tr><th>Component</th><th>Role</th><th>Typical hosting</th></tr>
+  <tr><td>Twilio</td><td>Inbound/outbound WhatsApp; triggers n8n</td><td>Twilio Cloud</td></tr>
+  <tr><td>n8n</td><td>Routing, LLM call, KB retrieval, Twilio replies, owner alerts</td><td>Self-hosted VPS / Docker / n8n Cloud</td></tr>
+  <tr><td>Convex</td><td>Database, server functions, HTTP routes for the bot, Better Auth</td><td>Convex Cloud (<code>*.convex.cloud</code> + <code>*.convex.site</code>)</td></tr>
+  <tr><td>Next.js dashboard</td><td>UI for inbox, leads, KB, handover</td><td>Vercel (e.g. <code>*.vercel.app</code>) or any Node host</td></tr>
+  <tr><td>OpenRouter (or similar)</td><td>LLM API used from n8n for chat replies</td><td>SaaS API</td></tr>
+</table>
+
+<h2>3. n8n — what it does and how it works</h2>
+<p><strong>n8n</strong> is a visual workflow engine. Each inbound WhatsApp message fires a workflow that:</p>
+<ul>
+  <li><strong>Normalizes input</strong> — Maps Twilio fields (<code>from</code>, <code>to</code>, <code>body</code>, media) into a consistent shape and holds configuration: Convex base URL, shared HTTP secret, org id, owner phone for alerts.</li>
+  <li><strong>Conversation state</strong> — Calls Convex <code>/getStatus</code> to see if the thread is in <em>human takeover</em> (set from the dashboard). If active, the path can save the user message and optionally send a short “team is handling this” reply without running the full LLM.</li>
+  <li><strong>Media branch</strong> — Routes images/voice/other attachments to fallbacks or simple replies.</li>
+  <li><strong>Chat path (default)</strong> — Loads recent history from Convex (<code>/getHistory</code>), searches the knowledge base (<code>/searchKB</code>), builds a single prompt (system + KB snippets + history + latest message), calls the LLM (e.g. OpenRouter), then parses the reply.</li>
+  <li><strong>Lead capture</strong> — If the model returns a structured <code>[LEAD]{...}[/LEAD]</code> block, the workflow can POST to <code>/ingestLead</code>, send email/SMTP, notify the owner, and confirm to the user.</li>
+  <li><strong>“Needs handover” detection</strong> — Keyword/heuristic logic flags when the user asks for a human or seems stuck. The workflow can <strong>notify the owner on WhatsApp</strong> with context but (by design) does <strong>not</strong> automatically flip Convex to human takeover — so the bot can keep helping until an operator takes over from the dashboard.</li>
+  <li><strong>Persist messages</strong> — Saves user and bot lines via <code>/saveMessages</code> so the dashboard and future turns stay in sync.</li>
+</ul>
+
+<h3>3.1 n8n use cases (business)</h3>
+<ul>
+  <li>24/7 first-line answers using studio-approved KB (pricing, schedule, policies).</li>
+  <li>Capturing leads (name, email, phone) into Convex for follow-up.</li>
+  <li>Alerting the owner when someone wants a human or submits a lead.</li>
+  <li>Graceful handling of media and edge cases without crashing the flow.</li>
+</ul>
+
+<h3>3.2 n8n — technical notes</h3>
+<ul>
+  <li>All bot → Convex HTTP calls should use the <strong><code>*.convex.site</code></strong> base URL (HTTP actions), not the dashboard websocket URL (<code>*.convex.cloud</code>).</li>
+  <li>If <code>WHATSAPP_BOT_HTTP_SECRET</code> is set in Convex, every request must send the same <strong>secret</strong> (query, header, or JSON body) or routes return 401 — including <code>/searchKB</code>. A failed KB call leaves the model without facts (e.g. “no pricing”).</li>
+  <li>The workflow version discussed here returns KB as <code>{ "chunks": [...] }</code> in one JSON body so n8n does not split arrays into many items incorrectly.</li>
+</ul>
+
+<h2>4. Human handover — behaviour</h2>
+<table>
+  <tr><th>Mechanism</th><th>Who triggers it</th><th>Effect</th></tr>
+  <tr><td>Convex conversation status <code>human_takeover</code></td><td><strong>Dashboard</strong> (operator)</td><td>n8n reads <code>/getStatus</code>; user can get a holding message; bot automation is reduced according to workflow design.</td></tr>
+  <tr><td>User says “speak to someone”</td><td>Customer</td><td>n8n can <strong>notify the owner</strong> with chat context; <strong>does not</strong> automatically set Convex takeover — customer can keep chatting with the bot until staff take over from the UI.</td></tr>
+  <tr><td>Outbound replies from staff</td><td>Dashboard queue + n8n bridge</td><td>Human-written messages can be pulled/marked sent via Convex HTTP so Twilio sends from the same number.</td></tr>
+</table>
+<p class="note"><strong>Design intent:</strong> Avoid promising “someone will message you immediately” when no one is available. The bot remains available for factual questions until a human explicitly takes the thread in the dashboard.</p>
+
+<h2>5. Dashboard — features (Next.js)</h2>
+<ul>
+  <li><strong>Authentication</strong> — Better Auth with Convex; production <code>SITE_URL</code> must match the deployed app URL (e.g. Vercel). Optional extra origins for local development.</li>
+  <li><strong>Leads</strong> — List/filter leads ingested from the bot (org-scoped).</li>
+  <li><strong>Inbox / conversations</strong> — Live thread view backed by Convex; handover toggle; queue for human replies to WhatsApp.</li>
+  <li><strong>Knowledge base</strong> — Manage chunks used by n8n’s <code>/searchKB</code> for RAG-style prompts.</li>
+  <li><strong>Settings / org</strong> — Align <code>orgId</code> with n8n <code>defaultLeadOrgId</code> and Convex data.</li>
+</ul>
+
+<h2>6. Technical stack</h2>
+<h3>6.1 Dashboard (monorepo <code>n8n-wht</code>)</h3>
+<table>
+  <tr><th>Layer</th><th>Technology</th></tr>
+  <tr><td>Monorepo / builds</td><td>pnpm workspaces, <strong>Turborepo</strong></td></tr>
+  <tr><td>Frontend</td><td><strong>Next.js</strong> (App Router), <strong>React</strong>, <strong>Tailwind CSS</strong>, <strong>shadcn/ui</strong></td></tr>
+  <tr><td>Backend / data</td><td><strong>Convex</strong> (queries, mutations, HTTP routes, scheduled jobs as needed)</td></tr>
+  <tr><td>Auth</td><td><strong>Better Auth</strong> + Convex adapter</td></tr>
+  <tr><td>Deploy (typical)</td><td><strong>Vercel</strong> — root or <code>apps/web</code>, env: <code>NEXT_PUBLIC_CONVEX_URL</code>, <code>NEXT_PUBLIC_CONVEX_SITE_URL</code></td></tr>
+</table>
+
+<h3>6.2 n8n + integrations</h3>
+<table>
+  <tr><th>Piece</th><th>Technology</th></tr>
+  <tr><td>Automation</td><td><strong>n8n</strong> (workflow JSON import/export)</td></tr>
+  <tr><td>WhatsApp</td><td><strong>Twilio</strong> Messaging / WhatsApp API</td></tr>
+  <tr><td>LLM</td><td>e.g. <strong>OpenRouter</strong> from n8n LangChain node</td></tr>
+  <tr><td>Email (optional)</td><td>SMTP node for lead notifications</td></tr>
+  <tr><td>Deploy</td><td>Any reachable URL for Twilio webhooks — not Vercel by default</td></tr>
+</table>
+
+<h3>6.3 Convex (shared)</h3>
+<ul>
+  <li><strong><code>*.convex.cloud</code></strong> — Convex client / realtime sync (dashboard).</li>
+  <li><strong><code>*.convex.site</code></strong> — HTTP endpoints for n8n (<code>/getStatus</code>, <code>/getHistory</code>, <code>/saveMessages</code>, <code>/setStatus</code>, <code>/ingestLead</code>, <code>/searchKB</code>, outbound queue routes, etc.).</li>
+  <li><strong>Environment variables</strong> (examples): <code>SITE_URL</code>, <code>BETTER_AUTH_SECRET</code>, <code>WHATSAPP_BOT_HTTP_SECRET</code>, optional <code>ADDITIONAL_TRUSTED_ORIGINS</code>, <code>DEFAULT_LEAD_ORG_ID</code>.</li>
+</ul>
+
+<h2>7. Deployment checklist (reference)</h2>
+<table>
+  <tr><th>Surface</th><th>Check</th></tr>
+  <tr><td>Vercel</td><td>Env vars for Convex URLs; redeploy after changes.</td></tr>
+  <tr><td>Convex</td><td><code>pnpm convex deploy</code>; secrets set; <code>SITE_URL</code> = production dashboard URL.</td></tr>
+  <tr><td>n8n</td><td>Workflow active; Twilio trigger credentials; OpenRouter/SMTP; <strong>Normalize Input</strong> matches Convex deployment and secret.</td></tr>
+  <tr><td>Twilio</td><td>WhatsApp sandbox or production number; webhook URL points to n8n.</td></tr>
+</table>
+
+<h2>8. Glossary</h2>
+<ul>
+  <li><strong>RAG</strong> — Retrieval-augmented generation: KB chunks are injected into the prompt so answers follow studio facts.</li>
+  <li><strong>Org id</strong> — Logical tenant (e.g. <code>org_zumbaton</code>) for leads, conversations, and KB rows.</li>
+  <li><strong>Human takeover</strong> — A Convex flag on the conversation, controlled from the dashboard, not automatically by “I want a human” alone (in the described design).</li>
+</ul>
+
+<hr />
+<p class="muted">End of document. For Vercel + n8n env alignment, see also <code>docs/n8n-setup-after-vercel.md</code> in the repository.</p>
+
+</body>
+</html>
