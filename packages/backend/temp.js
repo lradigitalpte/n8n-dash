@@ -1,0 +1,1 @@
+﻿const fs = require('fs'); let f = 'c:/Users/Admin/Desktop/trying/n8n-wht/whatagent-zumbaton-v2.json'; let d = fs.readFileSync(f, 'utf8'); d = d.replace('var MAX_HISTORY_TURNS = 4;', 'var MAX_HISTORY_TURNS = 10;'); d = d.replace('"maxTokens": 1000', '"maxTokens": 4000'); fs.writeFileSync(f, d, 'utf8');

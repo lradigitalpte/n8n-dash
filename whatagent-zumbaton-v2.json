@@ -1,5 +1,5 @@
-{
-  "name": "Zumbaton WhatsApp Bot v2 — Memory + Human Handover",
+﻿{
+  "name": "One Step Fitness WhatsApp Bot v2 � Memory + Human Handover",
   "nodes": [
     {
       "id": "trig",
@@ -178,7 +178,7 @@
             {
               "name": "reply",
               "type": "string",
-              "value": "Our team is handling your chat — they'll be with you very shortly 👋"
+              "value": "Our team is handling your chat � they'll be with you very shortly ??"
             },
             {
               "name": "from",
@@ -197,7 +197,7 @@
     },
     {
       "id": "send_wa_ht",
-      "name": "Send WA — HT Active",
+      "name": "Send WA � HT Active",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "disabled": true,
@@ -307,7 +307,7 @@
             {
               "name": "reply",
               "type": "string",
-              "value": "Got your voice note! 🎙️ Voice transcription is coming soon — for now, please send your question as text and I'll help you right away."
+              "value": "Got your voice note! ??? Voice transcription is coming soon � for now, please send your question as text and I'll help you right away."
             }
           ]
         },
@@ -329,7 +329,7 @@
             {
               "name": "reply",
               "type": "string",
-              "value": "Thanks for the image! 📸 I can't read images just yet — please drop your question as text and I'll get right back to you!"
+              "value": "Thanks for the image! ?? I can't read images just yet � please drop your question as text and I'll get right back to you!"
             }
           ]
         },
@@ -351,7 +351,7 @@
             {
               "name": "reply",
               "type": "string",
-              "value": "Received your attachment! Please send your question as text for now and I'll help straight away 😊"
+              "value": "Received your attachment! Please send your question as text for now and I'll help straight away ??"
             }
           ]
         },
@@ -360,7 +360,7 @@
     },
     {
       "id": "attach_nums",
-      "name": "Attach Numbers — Media",
+      "name": "Attach Numbers � Media",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
@@ -392,7 +392,7 @@
     },
     {
       "id": "send_media",
-      "name": "Send WA — Media",
+      "name": "Send WA � Media",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "position": [
@@ -497,7 +497,7 @@
         100
       ],
       "parameters": {
-        "jsCode": "// Token-aware prompt: caps history depth, message length, and KB size (tune numbers below).\nvar MAX_HISTORY_TURNS = 12;\nvar MAX_CHARS_PER_LINE = 450;\nvar KB_MAX_CHUNKS = 4;\nvar KB_MAX_CHARS_PER_CHUNK = 1000;\n\nvar trigger = $('Normalize Input').item.json;\nvar msg = trigger.body || '';\nvar histData = $('Load History from Convex').item.json;\nvar messages = (histData && Array.isArray(histData.messages)) ? histData.messages : [];\n\n// Convex /searchKB returns { chunks: [...] }. Also handle n8n splitting legacy array responses into many items.\nvar kbRaw = $('Search KB from Convex').item.json;\nvar kbChunks = [];\nif (kbRaw && Array.isArray(kbRaw.chunks)) {\n  kbChunks = kbRaw.chunks;\n} else if (Array.isArray(kbRaw)) {\n  kbChunks = kbRaw;\n} else if (kbRaw && Array.isArray(kbRaw.data)) {\n  kbChunks = kbRaw.data;\n} else {\n  try {\n    var kbItems = $('Search KB from Convex').all();\n    if (kbItems && kbItems.length > 0) {\n      kbChunks = kbItems.map(function (i) {\n        return i.json;\n      }).filter(function (j) {\n        return j && (j.content !== undefined || j.title);\n      });\n    }\n  } catch (e) {\n    kbChunks = [];\n  }\n}\nif (kbChunks.length > KB_MAX_CHUNKS) {\n  kbChunks = kbChunks.slice(0, KB_MAX_CHUNKS);\n}\n\nvar kbContext = '';\nif (kbChunks.length > 0) {\n  kbContext = '\\n\\nRELEVANT KNOWLEDGE (from Convex database):\\n';\n  kbChunks.forEach(function(item) {\n    var body = (item.content || '');\n    if (body.length > KB_MAX_CHARS_PER_CHUNK) {\n      body = body.substring(0, KB_MAX_CHARS_PER_CHUNK) + '…';\n    }\n    kbContext += '--- ' + (item.title || 'Fact') + ' ---\\n' + body + '\\n\\n';\n  });\n}\n\nvar recent = messages.slice(-MAX_HISTORY_TURNS);\nvar historySection = '';\nif (recent.length > 0) {\n  historySection = '\\n\\nCONVERSATION SO FAR:\\n';\n  recent.forEach(function(m) {\n    var label = (m.role === 'user') ? 'Them' : 'You (Ash)';\n    var line = (m.content || '');\n    if (line.length > MAX_CHARS_PER_LINE) {\n      line = line.substring(0, MAX_CHARS_PER_LINE) + '…';\n    }\n    historySection += label + ': ' + line + '\\n';\n  });\n}\n\nif (msg.length > MAX_CHARS_PER_LINE) {\n  msg = msg.substring(0, MAX_CHARS_PER_LINE) + '…';\n}\n\nvar factRules = 'FACTS: Use RELEVANT KNOWLEDGE above for prices, schedule, address, and class names. If missing there, say you are not sure and point to zumbaton.sg — do not invent numbers.\\n';\n\nvar leadRule = 'LEAD CAPTURE — THIS IS THE MOST IMPORTANT RULE:\\n- If user shows any interest in joining, signing up, registering, booking a class, or trying Zumbaton → ask them warmly for their full name, email, and phone number all in one message. Example: Awesome, so excited to have you! To get you all set up, just drop your full name, email address, and phone number in one message and I will take care of the rest!\\n- If the user message contains an email address (format: word@domain.something) → they are sharing their contact details. Extract name, email, phone from their message. If any piece is missing ask for just that missing piece.\\n- Once you have name + email + phone → output EXACTLY this at the very start of your reply before any other text: [LEAD]{\"name\":\"THEIR_NAME\",\"email\":\"THEIR_EMAIL\",\"phone\":\"THEIR_PHONE\"}[/LEAD] then on a new line write a warm confirmation: You are all set [Name]! Our team will reach out to confirm your first class. Check the schedule at zumbaton.sg/schedule to pick a time. Cannot wait to see you on the dance floor!\\n- The [LEAD] tag is completely invisible to the user — do not mention it ever.\\n- Never invent contact details. Only use what the user actually provided.';\n\nvar system = 'You are Ash, the WhatsApp rep for Zumbaton dance studio in Singapore. You are that one friend who works at the studio — fun, a little cheeky, genuinely warm. You text like a real person, not a help desk.\\n\\nPERSONALITY & VIBE (this is the most important section):\\n- You are NOT a FAQ bot. You can laugh, joke around, and go off-topic for a moment before bringing it back naturally.\\n- If someone is clearly joking or being playful, PLAY BACK. Do not pivot straight to \"here is how to book a class\" — that kills the vibe.\\n- If someone says \"lol\" or uses casual language, loosen up. Match their energy.\\n- Light banter is encouraged. You are allowed to be funny. Actually be funny, not \"haha!\" funny.\\n- Only bring it back to Zumbaton when it feels natural — not every single message needs a call to action.\\n- If someone goes completely off-topic (weather, life, random chat), roll with it briefly, then find a fun way back. Like: \"haha okay okay — anyway speaking of good energy, have you tried a class yet? 👀\"\\n- Short messages. Real texting. Not paragraphs. Not bullet lists for casual chat.\\n- Occasional emoji, not on every single sentence.\\n\\nEXAMPLES OF THE RIGHT VIBE:\\n- Someone: \"I\\'m tired\" → You: \"bro same 😭 that\\'s literally why people come to Zumbaton lol — they show up tired and leave weirdly energised. idk how it works but it does\"\\n- Someone jokes around → joke back first, THEN maybe mention Zumbaton if it flows naturally\\n- Someone: \"what\\'s the weather like\" → \"no idea but I\\'d say it\\'s perfect weather for dancing 😌 (I say that every day)\"\\n- Someone: \"lol ok\" → \"haha 😄 so what\\'s up, anything I can help with?\" — NOT a sales pitch\\n- Casual question about classes → answer like a friend, not a brochure\\n\\nACTUAL RULES (facts only):\\n- For Zumbaton facts (prices, address, schedule, class names) → use KNOWLEDGE section only, never invent\\n- Be honest when you don\\'t know exact details, point to the right page naturally\\n- When someone wants to sign up → collect their details (LEAD CAPTURE below)\\n- Keep messages short\\n\\n' + leadRule;\n\nvar prompt = system + '\\n\\nKNOWLEDGE:\\n' + factRules + kbContext + historySection + '\\n\\nLatest message from them: ' + msg;\n\nreturn [{ json: { prompt: prompt, from: trigger.from, to: trigger.to } }];\n"
+        "jsCode": "// Token-aware prompt: caps history depth, message length, and KB size (tune numbers below).\nvar MAX_HISTORY_TURNS = 10;\nvar MAX_CHARS_PER_LINE = 450;\nvar KB_MAX_CHUNKS = 4;\nvar KB_MAX_CHARS_PER_CHUNK = 400;\n\nvar trigger = $('Normalize Input').item.json;\nvar msg = trigger.body || '';\nvar histData = $('Load History from Convex').item.json;\nvar messages = (histData && Array.isArray(histData.messages)) ? histData.messages : [];\n\n// Convex /searchKB returns { chunks: [...] }. Also handle n8n splitting legacy array responses into many items.\nvar kbRaw = $('Search KB from Convex').item.json;\nvar kbChunks = [];\nif (kbRaw && Array.isArray(kbRaw.chunks)) {\n  kbChunks = kbRaw.chunks;\n} else if (Array.isArray(kbRaw)) {\n  kbChunks = kbRaw;\n} else if (kbRaw && Array.isArray(kbRaw.data)) {\n  kbChunks = kbRaw.data;\n} else {\n  try {\n    var kbItems = $('Search KB from Convex').all();\n    if (kbItems && kbItems.length > 0) {\n      kbChunks = kbItems.map(function (i) {\n        return i.json;\n      }).filter(function (j) {\n        return j && (j.content !== undefined || j.title);\n      });\n    }\n  } catch (e) {\n    kbChunks = [];\n  }\n}\nif (kbChunks.length > KB_MAX_CHUNKS) {\n  kbChunks = kbChunks.slice(0, KB_MAX_CHUNKS);\n}\n\nvar kbContext = '';\nif (kbChunks.length > 0) {\n  kbContext = '\\n\\nRELEVANT KNOWLEDGE (from Convex database):\\n';\n  kbChunks.forEach(function(item) {\n    var body = (item.content || '');\n    if (body.length > KB_MAX_CHARS_PER_CHUNK) {\n      body = body.substring(0, KB_MAX_CHARS_PER_CHUNK) + '�';\n    }\n    kbContext += '--- ' + (item.title || 'Fact') + ' ---\\n' + body + '\\n\\n';\n  });\n}\n\nvar recent = messages.slice(-MAX_HISTORY_TURNS);\nvar historySection = '';\nif (recent.length > 0) {\n  historySection = '\\n\\nCONVERSATION SO FAR:\\n';\n  recent.forEach(function(m) {\n    var label = (m.role === 'user') ? 'Them' : 'You (Ash)';\n    var line = (m.content || '');\n    if (line.length > MAX_CHARS_PER_LINE) {\n      line = line.substring(0, MAX_CHARS_PER_LINE) + '�';\n    }\n    historySection += label + ': ' + line + '\\n';\n  });\n}\n\nif (msg.length > MAX_CHARS_PER_LINE) {\n  msg = msg.substring(0, MAX_CHARS_PER_LINE) + '�';\n}\n\nvar factRules = 'FACTS: Use RELEVANT KNOWLEDGE above for prices, schedule, address, and class names. If missing there, say you are not sure and point to onestepfitness.sg � do not invent numbers.\\n';\n\nvar leadRule = 'LEAD CAPTURE � THIS IS THE MOST IMPORTANT RULE:\\n- If user shows any interest in joining, signing up, registering, booking a class, or trying One Step Fitness ? ask them warmly for their full name, email, and phone number all in one message. Example: Awesome, so excited to have you! To get you all set up, just drop your full name, email address, and phone number in one message and I will take care of the rest!\\n- If the user message contains an email address (format: word@domain.something) ? they are sharing their contact details. Extract name, email, phone from their message. If any piece is missing ask for just that missing piece.\\n- Once you have name + email + phone ? output EXACTLY this at the very start of your reply before any other text: [LEAD]{\"name\":\"THEIR_NAME\",\"email\":\"THEIR_EMAIL\",\"phone\":\"THEIR_PHONE\"}[/LEAD] then on a new line write a warm confirmation: You are all set [Name]! Our team will reach out to confirm your first class. Check the schedule at onestepfitness.sg/schedule to pick a time. Cannot wait to see you on the dance floor!\\n- The [LEAD] tag is completely invisible to the user � do not mention it ever.\\n- Never invent contact details. Only use what the user actually provided.';\n\nvar system = 'You are Ash, the WhatsApp rep for One Step Fitness dance studio in Singapore. You are that one friend who works at the studio � fun, a little cheeky, genuinely warm. You text like a real person, not a help desk.\\n\\nPERSONALITY & VIBE (this is the most important section):\\n- You are NOT a FAQ bot. You can laugh, joke around, and go off-topic for a moment before bringing it back naturally.\\n- If someone is clearly joking or being playful, PLAY BACK. Do not pivot straight to \"here is how to book a class\" � that kills the vibe.\\n- If someone says \"lol\" or uses casual language, loosen up. Match their energy.\\n- Light banter is encouraged. You are allowed to be funny. Actually be funny, not \"haha!\" funny.\\n- Only bring it back to One Step Fitness when it feels natural � not every single message needs a call to action.\\n- If someone goes completely off-topic (weather, life, random chat), roll with it briefly, then find a fun way back. Like: \"haha okay okay � anyway speaking of good energy, have you tried a class yet? ??\"\\n- Short messages. Real texting. Not paragraphs. Not bullet lists for casual chat.\\n- Occasional emoji, not on every single sentence.\\n\\nEXAMPLES OF THE RIGHT VIBE:\\n- Someone: \"I\\'m tired\" ? You: \"bro same ?? that\\'s literally why people come to One Step Fitness lol � they show up tired and leave weirdly energised. idk how it works but it does\"\\n- Someone jokes around ? joke back first, THEN maybe mention One Step Fitness if it flows naturally\\n- Someone: \"what\\'s the weather like\" ? \"no idea but I\\'d say it\\'s perfect weather for dancing ?? (I say that every day)\"\\n- Someone: \"lol ok\" ? \"haha ?? so what\\'s up, anything I can help with?\" � NOT a sales pitch\\n- Casual question about classes ? answer like a friend, not a brochure\\n\\nACTUAL RULES (facts only):\\n- For One Step Fitness facts (prices, address, schedule, class names) ? use KNOWLEDGE section only, never invent\\n- Be honest when you don\\'t know exact details, point to the right page naturally\\n- When someone wants to sign up ? collect their details (LEAD CAPTURE below)\\n- Keep messages short\\n\\n' + leadRule;\n\nvar prompt = system + '\\n\\nKNOWLEDGE:\\n' + factRules + kbContext + historySection + '\\n\\nLatest message from them: ' + msg;\n\nreturn [{ json: { prompt: prompt, from: trigger.from, to: trigger.to } }];\n"
       }
     },
     {
@@ -630,9 +630,9 @@
         "operation": "send",
         "fromEmail": "FROM_EMAIL@yourdomain.com",
         "toEmail": "STUDIO_EMAIL@example.com",
-        "subject": "=🎉 New Lead: {{ $('Process Reply').item.json.leadName }}",
+        "subject": "=?? New Lead: {{ $('Process Reply').item.json.leadName }}",
         "emailFormat": "text",
-        "text": "=New lead from Zumbaton WhatsApp Bot!\n\nName: {{ $('Process Reply').item.json.leadName }}\nEmail: {{ $('Process Reply').item.json.leadEmail }}\nPhone: {{ $('Process Reply').item.json.leadPhone }}\nWhatsApp: {{ $('Process Reply').item.json.whatsappNumber }}\nTime: {{ new Date().toISOString() }}",
+        "text": "=New lead from One Step Fitness WhatsApp Bot!\n\nName: {{ $('Process Reply').item.json.leadName }}\nEmail: {{ $('Process Reply').item.json.leadEmail }}\nPhone: {{ $('Process Reply').item.json.leadPhone }}\nWhatsApp: {{ $('Process Reply').item.json.whatsappNumber }}\nTime: {{ new Date().toISOString() }}",
         "options": {
           "appendAttribution": false
         }
@@ -646,7 +646,7 @@
     },
     {
       "id": "notify_lead_wa",
-      "name": "Notify Owner — New Lead",
+      "name": "Notify Owner � New Lead",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "position": [
@@ -656,7 +656,7 @@
       "parameters": {
         "to": "={{ $('Normalize Input').item.json.ownerPhoneNumber }}",
         "from": "={{ $('Normalize Input').item.json.to_phone }}",
-        "message": "=🎉 New Zumbaton lead!\n\nName: {{ $('Process Reply').item.json.leadName }}\nEmail: {{ $('Process Reply').item.json.leadEmail }}\nPhone: {{ $('Process Reply').item.json.leadPhone }}\nWhatsApp: {{ $('Process Reply').item.json.whatsappNumber }}",
+        "message": "=?? New One Step Fitness lead!\n\nName: {{ $('Process Reply').item.json.leadName }}\nEmail: {{ $('Process Reply').item.json.leadEmail }}\nPhone: {{ $('Process Reply').item.json.leadPhone }}\nWhatsApp: {{ $('Process Reply').item.json.whatsappNumber }}",
         "toWhatsapp": true,
         "options": {}
       },
@@ -701,7 +701,7 @@
     },
     {
       "id": "send_wa_lead",
-      "name": "Send WA — Lead Confirmed",
+      "name": "Send WA � Lead Confirmed",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "position": [
@@ -772,7 +772,7 @@
     },
     {
       "id": "notify_handover_wa",
-      "name": "Notify Owner — Handover",
+      "name": "Notify Owner � Handover",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "position": [
@@ -782,7 +782,7 @@
       "parameters": {
         "to": "={{ $('Normalize Input').item.json.ownerPhoneNumber }}",
         "from": "={{ $('Normalize Input').item.json.to_phone }}",
-        "message": "=🚨 Customer asked to speak with someone\n\n{{ $('Process Reply').item.json.whatsappNumber }}\n\nLast message: \"{{ $('Process Reply').item.json.userMsg }}\"\n\nThe bot is still chatting with them. Use your dashboard to start human takeover when you're ready.",
+        "message": "=?? Customer asked to speak with someone\n\n{{ $('Process Reply').item.json.whatsappNumber }}\n\nLast message: \"{{ $('Process Reply').item.json.userMsg }}\"\n\nThe bot is still chatting with them. Use your dashboard to start human takeover when you're ready.",
         "toWhatsapp": true,
         "options": {}
       },
@@ -795,7 +795,7 @@
     },
     {
       "id": "send_wa_handover",
-      "name": "Send WA — Handover",
+      "name": "Send WA � Handover",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "position": [
@@ -805,7 +805,7 @@
       "parameters": {
         "to": "={{ ($('Process Reply').item.json.from || $('Normalize Input').item.json.from).replace('whatsapp:', '') }}",
         "from": "={{ $('Normalize Input').item.json.to_phone }}",
-        "message": "={{ $('Process Reply').item.json.reply + \"\\n\\n\" + \"I've let our team know someone asked to speak with them — they can follow up when they're free. I'm still here if you want class times, pricing, or anything else in the meantime 😊\" }}",
+        "message": "={{ $('Process Reply').item.json.reply + \"\\n\\n\" + \"I've let our team know someone asked to speak with them � they can follow up when they're free. I'm still here if you want class times, pricing, or anything else in the meantime ??\" }}",
         "toWhatsapp": true,
         "options": {}
       },
@@ -818,7 +818,7 @@
     },
     {
       "id": "send_wa_normal",
-      "name": "Send WA — Normal Reply",
+      "name": "Send WA � Normal Reply",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "position": [
@@ -841,7 +841,7 @@
     },
     {
       "id": "note",
-      "name": "Sticky Note — v2 Setup",
+      "name": "Sticky Note � v2 Setup",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
@@ -852,7 +852,7 @@
         "width": 3500,
         "height": 320,
         "color": 4,
-        "content": "ZUMBATON WHATSAPP BOT v2 — Memory + Human Handover + Notifications\n\n━━ CONFIG (node: Normalize Input) — no n8n Variables needed (Community Edition OK) ━━\n  convexSiteBase → full URL, e.g. https://fantastic-wolverine-819.eu-west-1.convex.site (no trailing slash)\n  botSecret → same value as Convex WHATSAPP_BOT_HTTP_SECRET (leave empty only if Convex also has no secret — dev only)\n  defaultLeadOrgId → org_zumbaton (or your org id for /dashboard filters)\n  ownerPhoneNumber → owner's WhatsApp E.164 WITHOUT whatsapp: prefix\n\n━━ TWILIO WHATSAPP FORMAT RULE ━━\n  In Twilio send nodes, keep \"To Whatsapp\" enabled and use plain +E.164 for From/To (no whatsapp: prefix).\n\n━━ CREDENTIALS (IMPORTANT) ━━\n  Twilio trigger and all Twilio send nodes must use the SAME Twilio account that owns the WhatsApp sender.\n  If the sender is on another account/subaccount, sends fail even when number format is correct.\n\n━━ HUMAN TAKEOVER ━━\n  Real human_takeover in Convex is started from the /dashboard only.\n  If a customer asks for a human, n8n pings the owner (Notify Owner) but does NOT set takeover — the bot keeps replying until you take over from the dashboard.\n  Node \"Set Handover Status in Convex\" is disabled; enable only if you want auto-takeover again.\n\n━━ OTHER PLACEHOLDERS ━━\n  FROM_EMAIL / STUDIO_EMAIL → SMTP Send Lead Email node\n\n━━ CREDENTIALS ━━\n  twilioApi · OpenRouter · SMTP\n\n━━ CONVEX ━━\n  Deploy: pnpm exec convex deploy\n  convex env set WHATSAPP_BOT_HTTP_SECRET (must match botSecret above in production)\n\n━━ FLOW ━━\n  Twilio → Normalize (config here) → Convex HTTP → LLM → save messages / ingest lead / email / WA\n  Vercel /dashboard/leads uses api.leads.list"
+        "content": "ONE STEP FITNESS WHATSAPP BOT v2 � Memory + Human Handover + Notifications\n\n?? CONFIG (node: Normalize Input) � no n8n Variables needed (Community Edition OK) ??\n  convexSiteBase ? full URL, e.g. https://fantastic-wolverine-819.eu-west-1.convex.site (no trailing slash)\n  botSecret ? same value as Convex WHATSAPP_BOT_HTTP_SECRET (leave empty only if Convex also has no secret � dev only)\n  defaultLeadOrgId ? org_zumbaton (or your org id for /dashboard filters)\n  ownerPhoneNumber ? owner's WhatsApp E.164 WITHOUT whatsapp: prefix\n\n?? TWILIO WHATSAPP FORMAT RULE ??\n  In Twilio send nodes, keep \"To Whatsapp\" enabled and use plain +E.164 for From/To (no whatsapp: prefix).\n\n?? CREDENTIALS (IMPORTANT) ??\n  Twilio trigger and all Twilio send nodes must use the SAME Twilio account that owns the WhatsApp sender.\n  If the sender is on another account/subaccount, sends fail even when number format is correct.\n\n?? HUMAN TAKEOVER ??\n  Real human_takeover in Convex is started from the /dashboard only.\n  If a customer asks for a human, n8n pings the owner (Notify Owner) but does NOT set takeover � the bot keeps replying until you take over from the dashboard.\n  Node \"Set Handover Status in Convex\" is disabled; enable only if you want auto-takeover again.\n\n?? OTHER PLACEHOLDERS ??\n  FROM_EMAIL / STUDIO_EMAIL ? SMTP Send Lead Email node\n\n?? CREDENTIALS ??\n  twilioApi � OpenRouter � SMTP\n\n?? CONVEX ??\n  Deploy: pnpm exec convex deploy\n  convex env set WHATSAPP_BOT_HTTP_SECRET (must match botSecret above in production)\n\n?? FLOW ??\n  Twilio ? Normalize (config here) ? Convex HTTP ? LLM ? save messages / ingest lead / email / WA\n  Vercel /dashboard/leads uses api.leads.list"
       }
     }
   ],
@@ -923,7 +923,7 @@
       "main": [
         [
           {
-            "node": "Send WA — HT Active",
+            "node": "Send WA � HT Active",
             "type": "main",
             "index": 0
           }
@@ -977,7 +977,7 @@
       "main": [
         [
           {
-            "node": "Attach Numbers — Media",
+            "node": "Attach Numbers � Media",
             "type": "main",
             "index": 0
           }
@@ -988,7 +988,7 @@
       "main": [
         [
           {
-            "node": "Attach Numbers — Media",
+            "node": "Attach Numbers � Media",
             "type": "main",
             "index": 0
           }
@@ -999,18 +999,18 @@
       "main": [
         [
           {
-            "node": "Attach Numbers — Media",
+            "node": "Attach Numbers � Media",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Attach Numbers — Media": {
+    "Attach Numbers � Media": {
       "main": [
         [
           {
-            "node": "Send WA — Media",
+            "node": "Send WA � Media",
             "type": "main",
             "index": 0
           }
@@ -1116,14 +1116,14 @@
       "main": [
         [
           {
-            "node": "Notify Owner — New Lead",
+            "node": "Notify Owner � New Lead",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Notify Owner — New Lead": {
+    "Notify Owner � New Lead": {
       "main": [
         [
           {
@@ -1138,7 +1138,7 @@
       "main": [
         [
           {
-            "node": "Send WA — Lead Confirmed",
+            "node": "Send WA � Lead Confirmed",
             "type": "main",
             "index": 0
           }
@@ -1149,14 +1149,14 @@
       "main": [
         [
           {
-            "node": "Notify Owner — Handover",
+            "node": "Notify Owner � Handover",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Send WA — Normal Reply",
+            "node": "Send WA � Normal Reply",
             "type": "main",
             "index": 0
           }
@@ -1168,11 +1168,11 @@
         []
       ]
     },
-    "Notify Owner — Handover": {
+    "Notify Owner � Handover": {
       "main": [
         [
           {
-            "node": "Send WA — Handover",
+            "node": "Send WA � Handover",
             "type": "main",
             "index": 0
           }
@@ -1197,3 +1197,4 @@
     "instanceId": "whatagent-zumbaton-v2"
   }
 }
+

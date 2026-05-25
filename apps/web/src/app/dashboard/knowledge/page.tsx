@@ -313,7 +313,7 @@ function KBContent() {
           <div className="space-y-4">
             <div className="rounded-lg bg-blue-500/5 p-3 text-xs text-blue-600 dark:text-blue-400 flex gap-2">
               <AlertCircle className="size-4 shrink-0" />
-              <p>This will crawl the provided URL and automatically create knowledge chunks from the text content.</p>
+              <p>This will read the page and create several small knowledge chunks (one per section), skipping nav/footer noise. Scrape pricing, schedule, and class pages separately for best results.</p>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Website URL</label>
@@ -337,8 +337,10 @@ function KBContent() {
                   if (!scrapeUrl) return;
                   setIsScrapingLoading(true);
                   try {
-                    await scrapeWebsite({ orgId, url: scrapeUrl });
-                    toast.success("Website scraped successfully");
+                    const result = await scrapeWebsite({ orgId, url: scrapeUrl });
+                    toast.success(
+                      `Scrape complete — ${result.chunksCreated} chunk${result.chunksCreated === 1 ? "" : "s"} added (${result.category})`,
+                    );
                     setIsAddingScrape(false);
                     setScrapeUrl("");
                   } catch (err: any) {

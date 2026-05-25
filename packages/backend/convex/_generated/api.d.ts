@@ -16,6 +16,7 @@ import type * as kb from "../kb.js";
 import type * as leads from "../leads.js";
 import type * as privateData from "../privateData.js";
 import type * as scraper from "../scraper.js";
+import type * as scraperExtract from "../scraperExtract.js";
 import type * as summaries from "../summaries.js";
 import type * as whatsappBot from "../whatsappBot.js";
 
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   leads: typeof leads;
   privateData: typeof privateData;
   scraper: typeof scraper;
+  scraperExtract: typeof scraperExtract;
   summaries: typeof summaries;
   whatsappBot: typeof whatsappBot;
 }>;

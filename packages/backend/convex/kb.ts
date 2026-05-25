@@ -152,9 +152,15 @@ export const search = internalQuery({
         }
       }
       const cat = (item.category ?? "").toLowerCase();
-      if (cat.includes("pric") && (raw.includes("price") || foldedQuery.includes("price"))) {
+      if ((cat.includes("pric") || text.includes("pric") || text.includes("pack")) && (raw.includes("price") || raw.includes("pack") || foldedQuery.includes("price") || foldedQuery.includes("pack"))) {
         score += 6;
       }
+      
+      // Specifically boost chunks that mention kids
+      if (text.includes("kid") && raw.includes("kid")) {
+        score += 10;
+      }
+      
       return { item, score };
     });
 
