@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query, internalQuery } from "./_generated/server";
+import { mutation, query, internalQuery, type QueryCtx } from "./_generated/server";
 import { authComponent } from "./auth";
+import type { Doc } from "./_generated/dataModel";
 
 export const list = query({
   args: {
@@ -85,11 +86,175 @@ function foldBizTerms(s: string): string {
     .replace(/\b(packages?|packs?|tokens?)\b/g, "package")
     .replace(/\b(schedules?)\b/g, "schedule")
     .replace(/\b(locations?|address|venue)\b/g, "location")
-    .replace(/\b(bookings?|booked|trial)\b/g, "book")
+    .replace(/\b(bookings?|booked|trial|promo|promotion|duo|special)\b/g, "book")
     .replace(/\b(classes?)\b/g, "class");
 }
 
 /** Search KB chunks: word overlap + synonym folding + fallback to newest chunks. */
+async function searchKbChunks(
+  ctx: QueryCtx,
+  args: { orgId: string; query: string; limit?: number },
+): Promise<Doc<"knowledgeBase">[]> {
+  const limit = Math.min(Math.max(1, args.limit ?? 5), 15);
+  const all = await ctx.db
+    .query("knowledgeBase")
+    .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+    .collect();
+
+  if (all.length === 0) {
+    return [];
+  }
+
+  const raw = args.query.toLowerCase().trim();
+  if (raw === "") {
+    return all
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, limit);
+  }
+
+  const foldedQuery = foldBizTerms(raw);
+  const words = foldedQuery
+    .split(/\s+/)
+    .map((w) => w.replace(/[^\p{L}\p{N}]+/gu, ""))
+    .filter((w) => w.length > 1);
+
+  const rawWords = raw
+    .split(/\s+/)
+    .map((w) => w.replace(/[^\p{L}\p{N}]+/gu, ""))
+    .filter((w) => w.length > 1);
+
+  const isClassQuery =
+    /\b(class|classes|programs?|workouts?|offer|offering)\b/i.test(raw) ||
+    /\bwhat do you (have|offer)\b/i.test(raw);
+  const isPriceQuery =
+    raw.includes("price") ||
+    raw.includes("pack") ||
+    raw.includes("cost") ||
+    raw.includes("how much") ||
+    raw.includes("$") ||
+    foldedQuery.includes("price") ||
+    foldedQuery.includes("package");
+  const isPromoQuery =
+    /\b(promo|promotion|trial|duo|1-for-1|special|offer|running)\b/i.test(raw) ||
+    raw.includes("too good to be true");
+
+  const scored = all.map((item) => {
+    const title = item.title.toLowerCase();
+    const text = `${item.title} ${item.content}`.toLowerCase();
+    const foldedText = foldBizTerms(text);
+    let score = 0;
+    if (text.includes(raw)) {
+      score += 12;
+    }
+    for (const w of rawWords) {
+      if (w.length > 2 && text.includes(w)) {
+        score += 3;
+      }
+    }
+    for (const w of words) {
+      if (w.length > 2 && foldedText.includes(w)) {
+        score += 4;
+      }
+    }
+    for (const w of rawWords) {
+      if (w.length >= 4) {
+        const idx = text.indexOf(w.slice(0, 4));
+        if (idx !== -1) {
+          score += 2;
+        }
+      }
+    }
+    const cat = (item.category ?? "").toLowerCase();
+    if ((cat.includes("pric") || text.includes("pric") || text.includes("pack")) && isPriceQuery) {
+      score += 6;
+    }
+
+    if (isPromoQuery || (isPriceQuery && (raw.includes("trial") || raw.includes("promo") || raw.includes("duo")))) {
+      if (cat.includes("promo")) {
+        score += 18;
+      }
+      if (title.includes("duo trial") || title.includes("1-for-1") || title.includes("trial promo")) {
+        score += 22;
+      }
+      if (text.includes("$23") && (raw.includes("studio") || raw.includes("23") || isPromoQuery)) {
+        score += 8;
+      }
+      if (text.includes("$35") && (raw.includes("outdoor") || raw.includes("35") || isPromoQuery)) {
+        score += 8;
+      }
+    }
+
+    if (isPriceQuery && cat.includes("promo")) {
+      score += 10;
+    }
+
+    if (isClassQuery) {
+      if (cat.includes("class")) {
+        score += 10;
+      }
+      if (title.includes("all studio classes") || title.includes("class lineup")) {
+        score += 20;
+      }
+      if (title.includes("groove stepper") && raw.includes("groove")) {
+        score += 8;
+      }
+      if (title.includes("zumba step") && (raw.includes("zumba") || raw.includes("zumb"))) {
+        score += 8;
+      }
+      if (title.includes("thunderbolt") && raw.includes("thunder")) {
+        score += 8;
+      }
+      if (title.includes("piloxing") && raw.includes("pilox")) {
+        score += 8;
+      }
+      if (title.includes("lil steppers") && (raw.includes("kid") || raw.includes("lil"))) {
+        score += 8;
+      }
+    }
+
+    if (text.includes("hello@zumbaton.sg") || text.includes("zumbaton.sg/trial")) {
+      score -= 25;
+    }
+    if (text.includes("zumbuddies") && !raw.includes("zumbudd")) {
+      score -= 8;
+    }
+
+    if (text.includes("kid") && raw.includes("kid")) {
+      score += 10;
+    }
+
+    return { item, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  const withHits = scored.filter((s) => s.score > 0).map((s) => s.item);
+  if (withHits.length >= limit) {
+    return withHits.slice(0, limit);
+  }
+
+  const used = new Set(withHits.map((i) => i._id));
+  const rest = all
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .filter((i) => !used.has(i._id));
+  return [...withHits, ...rest].slice(0, limit);
+}
+
+/** Dashboard + AI test page — same search logic the WhatsApp bot uses via HTTP. */
+export const searchForDashboard = query({
+  args: {
+    orgId: v.string(),
+    query: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) {
+      return [];
+    }
+    return await searchKbChunks(ctx, args);
+  },
+});
+
 export const search = internalQuery({
   args: {
     orgId: v.string(),
@@ -97,83 +262,6 @@ export const search = internalQuery({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const limit = Math.min(Math.max(1, args.limit ?? 5), 15);
-    const all = await ctx.db
-      .query("knowledgeBase")
-      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
-      .collect();
-
-    if (all.length === 0) {
-      return [];
-    }
-
-    const raw = args.query.toLowerCase().trim();
-    if (raw === "") {
-      return all
-        .sort((a, b) => b.updatedAt - a.updatedAt)
-        .slice(0, limit);
-    }
-
-    const foldedQuery = foldBizTerms(raw);
-    const words = foldedQuery
-      .split(/\s+/)
-      .map((w) => w.replace(/[^\p{L}\p{N}]+/gu, ""))
-      .filter((w) => w.length > 1);
-
-    const rawWords = raw
-      .split(/\s+/)
-      .map((w) => w.replace(/[^\p{L}\p{N}]+/gu, ""))
-      .filter((w) => w.length > 1);
-
-    const scored = all.map((item) => {
-      const text = `${item.title} ${item.content}`.toLowerCase();
-      const foldedText = foldBizTerms(text);
-      let score = 0;
-      if (text.includes(raw)) {
-        score += 12;
-      }
-      for (const w of rawWords) {
-        if (w.length > 2 && text.includes(w)) {
-          score += 3;
-        }
-      }
-      for (const w of words) {
-        if (w.length > 2 && foldedText.includes(w)) {
-          score += 4;
-        }
-      }
-      // Prefix match: "pric" matches "pricing" in original text
-      for (const w of rawWords) {
-        if (w.length >= 4) {
-          const idx = text.indexOf(w.slice(0, 4));
-          if (idx !== -1) {
-            score += 2;
-          }
-        }
-      }
-      const cat = (item.category ?? "").toLowerCase();
-      if ((cat.includes("pric") || text.includes("pric") || text.includes("pack")) && (raw.includes("price") || raw.includes("pack") || foldedQuery.includes("price") || foldedQuery.includes("pack"))) {
-        score += 6;
-      }
-      
-      // Specifically boost chunks that mention kids
-      if (text.includes("kid") && raw.includes("kid")) {
-        score += 10;
-      }
-      
-      return { item, score };
-    });
-
-    scored.sort((a, b) => b.score - a.score);
-    const withHits = scored.filter((s) => s.score > 0).map((s) => s.item);
-    if (withHits.length >= limit) {
-      return withHits.slice(0, limit);
-    }
-
-    const used = new Set(withHits.map((i) => i._id));
-    const rest = all
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-      .filter((i) => !used.has(i._id));
-    return [...withHits, ...rest].slice(0, limit);
+    return await searchKbChunks(ctx, args);
   },
 });
