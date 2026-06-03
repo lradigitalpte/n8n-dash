@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, ChevronDown, MessageCircle } from "lucide-react";
+import { ArrowLeft, Building2, ChevronDown, MessageCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import SidebarNav from "@/components/dashboard/sidebar-nav";
@@ -47,6 +47,7 @@ export default function ChatInbox() {
   const [selectedId, setSelectedId] = useState<string | null>(
     filteredConversations[0]?.id ?? null,
   );
+  const [showThread, setShowThread] = useState(false);
 
   useEffect(() => {
     if (filteredConversations.length === 0) {
@@ -71,13 +72,17 @@ export default function ChatInbox() {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, selectedId]);
 
+  const onSelectConversation = (id: string) => {
+    setSelectedId(id);
+    setShowThread(true);
+  };
+
   const setConversationStatus = useCallback((id: string, status: ConversationStatus) => {
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, status } : c)),
     );
   }, []);
 
-  /** Outbound messages: text and/or image and/or recorded audio (blob URLs — revoke on delete). */
   const sendOutgoingMessage = useCallback(
     (
       text: string,
@@ -120,12 +125,7 @@ export default function ChatInbox() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === selectedId
-            ? {
-                ...c,
-                lastMessagePreview: (content || "Media").slice(0, 80),
-                lastMessageAt: Date.now(),
-                unreadCount: 0,
-              }
+            ? { ...c, lastMessagePreview: (content || "Media").slice(0, 80), lastMessageAt: Date.now(), unreadCount: 0 }
             : c,
         ),
       );
@@ -168,14 +168,8 @@ export default function ChatInbox() {
       setConversations((cp) =>
         cp.map((conv) => {
           if (conv.id !== selectedId) return conv;
-          if (!newLast) {
-            return { ...conv, lastMessagePreview: "(no messages)", lastMessageAt: Date.now() };
-          }
-          return {
-            ...conv,
-            lastMessagePreview: newLast.content.slice(0, 80),
-            lastMessageAt: newLast.createdAt,
-          };
+          if (!newLast) return { ...conv, lastMessagePreview: "(no messages)", lastMessageAt: Date.now() };
+          return { ...conv, lastMessagePreview: newLast.content.slice(0, 80), lastMessageAt: newLast.createdAt };
         }),
       );
       return { ...prev, [selectedId]: next };
@@ -186,39 +180,47 @@ export default function ChatInbox() {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col bg-muted/40 dark:bg-background">
-      {/* WhatsApp Web–style: fixed-width list pane | full-width chat pane (nav lives in sidebar only — no extra top header) */}
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <aside className="flex max-h-[38vh] min-h-0 w-full shrink-0 flex-col border-b border-border/60 bg-[#dfe3ea] dark:border-border/50 dark:bg-[#16181d] md:max-h-none md:h-full md:w-[252px] md:min-w-[240px] md:max-w-[272px] md:border-b-0 md:border-r">
-          <SidebarNav />
+      {/* Top nav bar — always visible full width */}
+      <SidebarNav />
 
-          <div className="shrink-0 px-2.5 pb-2 pt-2">
+      <div className="flex min-h-0 flex-1">
+        {/* ── Conversation list ───────────────────────────────────────────── */}
+        <aside
+          className={cn(
+            "flex shrink-0 flex-col border-r border-border/60 bg-[#dfe3ea] dark:border-border/50 dark:bg-[#16181d]",
+            showThread ? "hidden" : "flex w-full",
+            "md:flex md:w-75 md:min-w-65 md:max-w-[320px]",
+          )}
+        >
+          {/* Org switcher */}
+          <div className="shrink-0 border-b border-border/40 px-3 py-3 dark:border-white/10">
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
                   <Button
                     variant="ghost"
-                    className="h-auto w-full justify-between gap-2 rounded-lg px-2 py-1.5 text-left font-normal hover:bg-black/5 dark:hover:bg-white/10"
+                    className="h-auto w-full justify-between gap-2 rounded-xl px-3 py-2.5 text-left font-normal hover:bg-black/5 dark:hover:bg-white/10"
                   />
                 }
               >
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
-                    <Building2 className="size-3.5" aria-hidden />
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                    <Building2 className="size-4" aria-hidden />
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-medium leading-tight">
+                    <span className="block truncate text-sm font-semibold leading-tight">
                       {currentOrg?.name ?? "Workspace"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">WhatsApp</span>
+                    <span className="text-[11px] text-muted-foreground">WhatsApp</span>
                   </span>
                 </span>
                 <ChevronDown className="size-4 shrink-0 opacity-50" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[min(100vw-2rem,300px)] rounded-lg bg-card p-1">
+              <DropdownMenuContent className="w-[min(100vw-2rem,300px)] rounded-xl bg-card p-1">
                 {MOCK_ORGANIZATIONS.map((o) => (
                   <DropdownMenuItem
                     key={o.id}
-                    className="rounded-md text-sm"
+                    className="rounded-lg text-sm"
                     onClick={() => setOrgId(o.id)}
                   >
                     {o.name}
@@ -228,56 +230,62 @@ export default function ChatInbox() {
             </DropdownMenu>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto border-t border-border/50 px-1.5 pb-2 pt-1 dark:border-white/10">
+          {/* Conversation list */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-2">
             {filteredConversations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-1.5 px-4 py-12 text-center text-sm text-muted-foreground">
-                <MessageCircle className="size-8 opacity-30" />
-                <p>No chats yet</p>
-                <p className="text-[11px] opacity-80">Connect Twilio → Convex to populate.</p>
+              <div className="flex flex-col items-center justify-center gap-2 px-4 py-16 text-center text-muted-foreground">
+                <MessageCircle className="size-10 opacity-30" />
+                <p className="text-sm font-medium">No chats yet</p>
+                <p className="text-xs opacity-70">Connect Twilio → Convex to populate.</p>
               </div>
             ) : (
-              <ul className="flex flex-col divide-y divide-border/60 rounded-md border border-border/50 dark:divide-white/[0.08] dark:border-white/10">
+              <ul className="flex flex-col gap-0.5">
                 {filteredConversations.map((c) => {
                   const active = c.id === selectedId;
                   return (
-                    <li key={c.id} className="min-w-0">
+                    <li key={c.id}>
                       <button
                         type="button"
-                        onClick={() => setSelectedId(c.id)}
+                        onClick={() => onSelectConversation(c.id)}
                         className={cn(
-                          "flex w-full gap-2 px-2 py-2 text-left transition-colors first:rounded-t-md last:rounded-b-md",
+                          "flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition-colors",
                           active
-                            ? "bg-white/95 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)] dark:bg-[#252830] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
-                            : "hover:bg-white/70 dark:hover:bg-white/[0.06]",
+                            ? "bg-white shadow-sm dark:bg-[#252830]"
+                            : "hover:bg-white/60 active:bg-white/80 dark:hover:bg-white/5",
                         )}
                       >
                         <div
                           className={cn(
-                            "flex size-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold",
-                            active ? "bg-primary/90 text-primary-foreground" : "bg-muted text-muted-foreground",
+                            "flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+                            active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
                           )}
                         >
                           {initials(c.displayName)}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-[13px] font-medium leading-none">{c.displayName}</span>
-                            <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                            <span className="truncate text-sm font-semibold">{c.displayName}</span>
+                            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
                               {formatRelativeTime(c.lastMessageAt)}
                             </span>
                           </div>
-                          <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+                          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
                             {c.lastMessagePreview}
                           </p>
-                          <div className="mt-1 flex items-center justify-between gap-2">
-                            <span className="text-[10px] text-muted-foreground/90">
+                          <div className="mt-1.5 flex items-center justify-between gap-2">
+                            <span className={cn(
+                              "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                              c.status === "human"
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+                            )}>
                               {c.status === "ai" ? "AI" : "Human"}
                             </span>
-                            {c.unreadCount > 0 ? (
-                              <span className="flex min-w-[1.125rem] justify-center rounded-full bg-emerald-600/90 px-1 text-[10px] font-medium leading-4 text-white">
+                            {c.unreadCount > 0 && (
+                              <span className="flex min-w-5 justify-center rounded-full bg-emerald-600 px-1.5 text-[11px] font-bold leading-5 text-white">
                                 {c.unreadCount > 9 ? "9+" : c.unreadCount}
                               </span>
-                            ) : null}
+                            )}
                           </div>
                         </div>
                       </button>
@@ -289,31 +297,44 @@ export default function ChatInbox() {
           </div>
         </aside>
 
-        <section className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#eef0f4] dark:bg-background">
+        {/* ── Chat thread ─────────────────────────────────────────────────── */}
+        <section
+          className={cn(
+            "relative min-w-0 flex-1 grid grid-rows-[auto_1fr_auto] bg-[#eef0f4] dark:bg-background",
+            !showThread ? "hidden md:grid" : "grid",
+          )}
+        >
           {!selected ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
-              <MessageCircle className="size-14 opacity-30" />
-              <p className="text-sm font-medium">Select a conversation</p>
-              <p className="max-w-sm text-xs">
-                Choose a chat from the list to read messages and reply. Data is mock for now —
-                Convex will replace this.
+            <div className="col-span-full row-span-full flex flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
+              <MessageCircle className="size-14 opacity-25" />
+              <p className="text-sm font-semibold">Select a conversation</p>
+              <p className="max-w-xs text-xs opacity-70">
+                Choose a chat from the list to read messages and reply.
               </p>
             </div>
           ) : (
             <>
-              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/80 bg-card/50 px-4 py-3 md:px-6 md:py-4">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground md:size-10 md:text-sm">
-                    {initials(selected.displayName)}
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="truncate text-sm font-semibold md:text-base">{selected.displayName}</h2>
-                    <p className="truncate font-mono text-xs text-muted-foreground">
-                      {selected.phone}
-                    </p>
-                  </div>
+              {/* Chat header */}
+              <div className="flex shrink-0 items-center gap-2 border-b border-border/70 bg-card/70 px-3 py-3 backdrop-blur md:px-5">
+                {/* Back — mobile only */}
+                <button
+                  type="button"
+                  onClick={() => setShowThread(false)}
+                  aria-label="Back to conversations"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-black/5 active:bg-black/10 dark:hover:bg-white/10 md:hidden"
+                >
+                  <ArrowLeft className="size-5" />
+                </button>
+
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+                  {initials(selected.displayName)}
                 </div>
-                <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border/80 bg-background/90 px-2 py-1.5 text-[11px] md:gap-2 md:px-2.5 md:text-xs">
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate text-sm font-bold leading-tight">{selected.displayName}</h2>
+                  <p className="truncate font-mono text-[11px] text-muted-foreground">{selected.phone}</p>
+                </div>
+
+                <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-background/80 px-3 py-2 text-xs font-medium">
                   <Checkbox
                     checked={selected.status === "human"}
                     onCheckedChange={(v) =>
@@ -325,13 +346,14 @@ export default function ChatInbox() {
                 </label>
               </div>
 
+              {/* Messages */}
               <div
                 ref={threadRef}
-                className="chat-thread-texture min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3 md:px-8 md:py-5"
+                className="chat-thread-texture overflow-y-auto overscroll-contain px-3 py-4 md:px-6 md:py-5"
               >
-                <div className="flex w-full flex-col gap-3 md:gap-4">
+                <div className="flex w-full flex-col gap-2 md:gap-3">
                   {messages.length === 0 ? (
-                    <p className="text-center text-sm text-muted-foreground">
+                    <p className="py-8 text-center text-sm text-muted-foreground">
                       No messages yet. Incoming WhatsApp traffic will show here.
                     </p>
                   ) : (
@@ -347,7 +369,8 @@ export default function ChatInbox() {
                 </div>
               </div>
 
-              <div className="shrink-0 border-t border-border/70 bg-[#e6e9ef] px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] dark:border-border/80 dark:bg-card/60 md:px-6 md:py-3">
+              {/* Composer */}
+              <div className="shrink-0 border-t border-border/70 bg-[#e6e9ef] px-3 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-border/80 dark:bg-card/60 md:px-5 md:py-3">
                 <PromptInputBox
                   value={draft}
                   onValueChange={setDraft}
@@ -355,18 +378,15 @@ export default function ChatInbox() {
                     sendOutgoingMessage(message, meta);
                     if (meta?.files?.length) {
                       toast.info("Image queued", {
-                        description:
-                          "For Twilio WhatsApp, upload to HTTPS storage first then send MediaUrl (see code comment).",
+                        description: "For Twilio WhatsApp, upload to HTTPS storage first then send MediaUrl.",
                       });
                     }
                   }}
-                  placeholder={
-                    selected.status === "human" ? "Type a reply…" : "Type a message…"
-                  }
-                  className="border-border/70 bg-background/90 text-sm shadow-sm dark:border-border/80 dark:bg-card/90"
+                  placeholder={selected.status === "human" ? "Type a reply…" : "Type a message…"}
+                  className="border-border/70 bg-background/90 shadow-sm dark:border-border/80 dark:bg-card/90"
                 />
-                <p className="mt-0.5 hidden px-1 text-[10px] text-muted-foreground sm:block">
-                  Enter to send · Shift+Enter for a new line
+                <p className="mt-1 hidden px-1 text-[11px] text-muted-foreground sm:block">
+                  Enter to send · Shift+Enter for new line
                 </p>
               </div>
             </>

@@ -1,5 +1,5 @@
-{
-  "name": "One Step Fitness WhatsApp Bot v2 � Memory + Human Handover",
+﻿{
+  "name": "Zumbaton WhatsApp Bot v2 — Memory + Human Handover",
   "nodes": [
     {
       "id": "trig",
@@ -178,7 +178,7 @@
             {
               "name": "reply",
               "type": "string",
-              "value": "Our team is handling your chat � they'll be with you very shortly ??"
+              "value": "Our team is handling your chat — they'll be with you very shortly 👋"
             },
             {
               "name": "from",
@@ -197,7 +197,7 @@
     },
     {
       "id": "send_wa_ht",
-      "name": "Send WA � HT Active",
+      "name": "Send WA — HT Active",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "disabled": true,
@@ -307,7 +307,7 @@
             {
               "name": "reply",
               "type": "string",
-              "value": "Got your voice note! ??? Voice transcription is coming soon � for now, please send your question as text and I'll help you right away."
+              "value": "Got your voice note! 🎙️ Voice transcription is coming soon — for now, please send your question as text and I'll help you right away."
             }
           ]
         },
@@ -329,7 +329,7 @@
             {
               "name": "reply",
               "type": "string",
-              "value": "Thanks for the image! ?? I can't read images just yet � please drop your question as text and I'll get right back to you!"
+              "value": "Thanks for the image! 📸 I can't read images just yet — please drop your question as text and I'll get right back to you!"
             }
           ]
         },
@@ -351,7 +351,7 @@
             {
               "name": "reply",
               "type": "string",
-              "value": "Received your attachment! Please send your question as text for now and I'll help straight away ??"
+              "value": "Received your attachment! Please send your question as text for now and I'll help straight away 😊"
             }
           ]
         },
@@ -360,7 +360,7 @@
     },
     {
       "id": "attach_nums",
-      "name": "Attach Numbers � Media",
+      "name": "Attach Numbers — Media",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
@@ -392,7 +392,7 @@
     },
     {
       "id": "send_media",
-      "name": "Send WA � Media",
+      "name": "Send WA — Media",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "position": [
@@ -472,11 +472,11 @@
             },
             {
               "name": "query",
-              "value": "={{ $('Prepare KB Search Query').item.json.searchQuery }}"
+              "value": "={{ ($('Normalize Input').item.json.body || 'classes schedule pricing trial').substring(0, 500) }}"
             },
             {
               "name": "limit",
-              "value": "6"
+              "value": "4"
             },
             {
               "name": "secret",
@@ -497,7 +497,7 @@
         100
       ],
       "parameters": {
-        "jsCode": "// Token-aware prompt: caps history depth, message length, and KB size (tune numbers below).\nvar MAX_HISTORY_TURNS = 12;\nvar MAX_CHARS_PER_LINE = 450;\nvar KB_MAX_CHUNKS = 6;\nvar KB_MAX_CHARS_PER_CHUNK = 1000;\n\nvar trigger = $('Normalize Input').item.json;\nvar msg = trigger.body || '';\nvar histData = $('Load History from Convex').item.json;\nvar messages = (histData && Array.isArray(histData.messages)) ? histData.messages : [];\n\n// Convex /searchKB returns { chunks: [...] }. Also handle n8n splitting legacy array responses into many items.\nvar kbRaw = $('Search KB from Convex').item.json;\nvar kbChunks = [];\nif (kbRaw && Array.isArray(kbRaw.chunks)) {\n  kbChunks = kbRaw.chunks;\n} else if (Array.isArray(kbRaw)) {\n  kbChunks = kbRaw;\n} else if (kbRaw && Array.isArray(kbRaw.data)) {\n  kbChunks = kbRaw.data;\n} else {\n  try {\n    var kbItems = $('Search KB from Convex').all();\n    if (kbItems && kbItems.length > 0) {\n      kbChunks = kbItems.map(function (i) {\n        return i.json;\n      }).filter(function (j) {\n        return j && (j.content !== undefined || j.title);\n      });\n    }\n  } catch (e) {\n    kbChunks = [];\n  }\n}\nif (kbChunks.length > KB_MAX_CHUNKS) {\n  kbChunks = kbChunks.slice(0, KB_MAX_CHUNKS);\n}\n\nvar kbContext = '';\nif (kbChunks.length > 0) {\n  kbContext = '\\n\\nRELEVANT KNOWLEDGE (from Convex database — source of truth for facts):\\n';\n  kbChunks.forEach(function(item) {\n    var body = (item.content || '');\n    if (body.length > KB_MAX_CHARS_PER_CHUNK) {\n      body = body.substring(0, KB_MAX_CHARS_PER_CHUNK) + '…';\n    }\n    kbContext += '--- ' + (item.title || 'Fact') + ' ---\\n' + body + '\\n\\n';\n  });\n} else {\n  kbContext = '\\n\\nRELEVANT KNOWLEDGE: (none retrieved — do NOT guess prices or promos; say check onestepfitness.sg/promos)\\n';\n}\n\nvar recent = messages.slice(-MAX_HISTORY_TURNS);\nvar historySection = '';\nif (recent.length > 0) {\n  historySection = '\\n\\nCONVERSATION SO FAR:\\n';\n  recent.forEach(function(m) {\n    var label = (m.role === 'user') ? 'Them' : 'You (Ash)';\n    var line = (m.content || '');\n    if (line.length > MAX_CHARS_PER_LINE) {\n      line = line.substring(0, MAX_CHARS_PER_LINE) + '…';\n    }\n    historySection += label + ': ' + line + '\\n';\n  });\n}\n\nif (msg.length > MAX_CHARS_PER_LINE) {\n  msg = msg.substring(0, MAX_CHARS_PER_LINE) + '…';\n}\n\nvar factRules =\n  'FACT RULES (strict on numbers):\\n' +\n  '- ALL prices and promo details → ONLY from RELEVANT KNOWLEDGE. Never guess, never calculate your own price.\\n' +\n  '- 1-for-1 Duo trials (if in KNOWLEDGE): Studio Duo Trial = $23 SGD per duo. Outdoor Duo Trial = $35 SGD per duo. Quote these exactly.\\n' +\n  '- Do NOT invent prices like $40, $50, $20 each, etc. If KNOWLEDGE has the price, copy it exactly.\\n' +\n  '- If user says your price was wrong → apologize briefly, then give ONLY prices from KNOWLEDGE. Never invent a new number to replace the wrong one.\\n' +\n  '- If promo/pricing is not in KNOWLEDGE → say check onestepfitness.sg/promos — do not make up a promo price.\\n' +\n  '- Promotions page: onestepfitness.sg/promos (not generic homepage).\\n' +\n  '- Class names, coaches → KNOWLEDGE only. You can be funny but facts come first.\\n';\n\nvar leadRule =\n  'LEAD CAPTURE:\\n' +\n  '- If user wants to join, sign up, register, book, or try a class → ask warmly for full name, email, and phone in one message.\\n' +\n  '- If their message contains an email → extract name, email, phone. Ask only for missing pieces.\\n' +\n  '- Once you have name + email + phone → start reply with EXACTLY: [LEAD]{\"name\":\"THEIR_NAME\",\"email\":\"THEIR_EMAIL\",\"phone\":\"THEIR_PHONE\"}[/LEAD]\\n' +\n  '  then confirm warmly and mention onestepfitness.sg/schedule.\\n' +\n  '- Never mention the [LEAD] tag to the user. Never invent contact details.\\n';\n\nvar system =\n  'You are Ash, the WhatsApp rep for One Step Fitness dance studio in Singapore. Fun, warm, a little cheeky — real person energy, not a corporate bot.\\n\\n' +\n  'PERSONALITY:\\n' +\n  '- Banter and humor welcome. Match their vibe.\\n' +\n  '- Short WhatsApp-style messages. Emojis ok but max ~1 per message.\\n' +\n  '- When they ask prices/promos/classes → give the real numbers from KNOWLEDGE in your friendly voice.\\n' +\n  '- Do not replace facts with jokes or vague hype (\"super worth it\") without actual prices.\\n\\n' +\n  'PROMO EXAMPLE (when KNOWLEDGE has duo trial chunk):\\n' +\n  '- \"We\\'ve got 1-for-1 duo trials! Studio is $23 per duo (Zumba Step, Groove Stepper, or Thunderbolt). Outdoor at Kallang is $35 per duo. Deets at onestepfitness.sg/promos\"\\n\\n' +\n  factRules + '\\n' +\n  leadRule;\n\nvar prompt = system + kbContext + historySection + '\\n\\nLatest message from them: ' + msg;\n\nreturn [{ json: { prompt: prompt, from: trigger.from, to: trigger.to } }];\n"
+        "jsCode": "// Token-aware prompt: caps history depth, message length, and KB size (tune numbers below).\nvar MAX_HISTORY_TURNS = 12;\nvar MAX_CHARS_PER_LINE = 450;\nvar KB_MAX_CHUNKS = 5;\nvar KB_MAX_CHARS_PER_CHUNK = 1000;\n\nvar trigger = $('Normalize Input').item.json;\nvar msg = trigger.body || '';\nvar histData = $('Load History from Convex').item.json;\nvar messages = (histData && Array.isArray(histData.messages)) ? histData.messages : [];\n\n// Convex /searchKB returns { chunks: [...] }. Also handle n8n splitting legacy array responses into many items.\nvar kbRaw = $('Search KB from Convex').item.json;\nvar kbChunks = [];\nif (kbRaw && Array.isArray(kbRaw.chunks)) {\n  kbChunks = kbRaw.chunks;\n} else if (Array.isArray(kbRaw)) {\n  kbChunks = kbRaw;\n} else if (kbRaw && Array.isArray(kbRaw.data)) {\n  kbChunks = kbRaw.data;\n} else {\n  try {\n    var kbItems = $('Search KB from Convex').all();\n    if (kbItems && kbItems.length > 0) {\n      kbChunks = kbItems.map(function (i) {\n        return i.json;\n      }).filter(function (j) {\n        return j && (j.content !== undefined || j.title);\n      });\n    }\n  } catch (e) {\n    kbChunks = [];\n  }\n}\nif (kbChunks.length > KB_MAX_CHUNKS) {\n  kbChunks = kbChunks.slice(0, KB_MAX_CHUNKS);\n}\n\nvar kbContext = '';\nif (kbChunks.length > 0) {\n  kbContext = '\\n\\nRELEVANT KNOWLEDGE (from Convex database — source of truth for facts):\\n';\n  kbChunks.forEach(function(item) {\n    var body = (item.content || '');\n    if (body.length > KB_MAX_CHARS_PER_CHUNK) {\n      body = body.substring(0, KB_MAX_CHARS_PER_CHUNK) + '…';\n    }\n    kbContext += '--- ' + (item.title || 'Fact') + ' ---\\n' + body + '\\n\\n';\n  });\n}\n\nvar recent = messages.slice(-MAX_HISTORY_TURNS);\nvar historySection = '';\nif (recent.length > 0) {\n  historySection = '\\n\\nCONVERSATION SO FAR:\\n';\n  recent.forEach(function(m) {\n    var label = (m.role === 'user') ? 'Them' : 'You (Ash)';\n    var line = (m.content || '');\n    if (line.length > MAX_CHARS_PER_LINE) {\n      line = line.substring(0, MAX_CHARS_PER_LINE) + '…';\n    }\n    historySection += label + ': ' + line + '\\n';\n  });\n}\n\nif (msg.length > MAX_CHARS_PER_LINE) {\n  msg = msg.substring(0, MAX_CHARS_PER_LINE) + '…';\n}\n\nvar factRules =\n  'FACT RULES:\\n' +\n  '- Prices, packages, class names, coaches, schedule, address → use RELEVANT KNOWLEDGE only. If missing, say you are not sure and point to onestepfitness.sg.\\n' +\n  '- Never invent prices, classes, or coach names.\\n' +\n  '- Use real class names from KNOWLEDGE (e.g. Thunderbolt · Bodyweight & Steppers, Thunderbolt · Resistance & Dance). Do not make up new names like \"Thunderbolt Plus\".\\n' +\n  '- When asked what classes you have → list everything in KNOWLEDGE (adult, kids, family, outdoor). Do not skip any.\\n' +\n  '- When asked about coaches → share the names in KNOWLEDGE. Do not dodge or say you will not list them.\\n' +\n  '- You CAN be funny while answering — just do not let jokes replace the actual facts.\\n';\n\nvar leadRule =\n  'LEAD CAPTURE:\\n' +\n  '- If user wants to join, sign up, register, book, or try a class → ask warmly for full name, email, and phone in one message.\\n' +\n  '- If their message contains an email → extract name, email, phone. Ask only for missing pieces.\\n' +\n  '- Once you have name + email + phone → start reply with EXACTLY: [LEAD]{\"name\":\"THEIR_NAME\",\"email\":\"THEIR_EMAIL\",\"phone\":\"THEIR_PHONE\"}[/LEAD]\\n' +\n  '  then confirm warmly and mention onestepfitness.sg/schedule.\\n' +\n  '- Never mention the [LEAD] tag to the user. Never invent contact details.\\n';\n\nvar system =\n  'You are Ash, the WhatsApp rep for One Step Fitness dance studio in Singapore. You are that one friend who works at the studio — fun, a little cheeky, genuinely warm. You text like a real person, not a help desk.\\n\\n' +\n  'PERSONALITY & VIBE:\\n' +\n  '- You are NOT a stiff FAQ bot. Banter and humor are welcome — that is your charm.\\n' +\n  '- If someone is joking or playful, play back. Match their energy.\\n' +\n  '- Short messages. Real texting. Not long paragraphs unless listing prices/classes.\\n' +\n  '- Emojis are fine but do not spam them — roughly 0 to 1 per message, not every sentence.\\n' +\n  '- When someone asks a real question (classes, prices, coaches), answer it properly — you can still sound like Ash while giving the facts.\\n' +\n  '- Do not use random metaphors (pizza, toppings, etc.) instead of explaining the class.\\n' +\n  '- Only pivot to booking when it feels natural — not every message needs a sales pitch.\\n\\n' +\n  'EXAMPLES:\\n' +\n  '- \"I\\'m tired\" → \"bro same 😭 that\\'s literally why people come here — show up tired, leave weirdly energised\"\\n' +\n  '- \"what classes do you have?\" → list them clearly but in your voice, not a corporate brochure\\n' +\n  '- \"tell me about thunderbolt\" → explain both Thunderbolt classes from KNOWLEDGE, can be enthusiastic\\n' +\n  '- \"who are the coaches?\" → name them from KNOWLEDGE, friendly tone\\n' +\n  '- \"lol ok\" → light reply, no forced sales pitch\\n\\n' +\n  factRules + '\\n' +\n  leadRule;\n\nvar prompt = system + kbContext + historySection + '\\n\\nLatest message from them: ' + msg;\n\nreturn [{ json: { prompt: prompt, from: trigger.from, to: trigger.to } }];\n"
       }
     },
     {
@@ -526,7 +526,8 @@
       "parameters": {
         "model": "meta-llama/llama-3.3-70b-instruct:free",
         "options": {
-          "temperature": 0.7
+          "temperature": 0.7,
+          "maxTokens": 1000
         }
       },
       "credentials": {
@@ -630,9 +631,9 @@
         "operation": "send",
         "fromEmail": "FROM_EMAIL@yourdomain.com",
         "toEmail": "STUDIO_EMAIL@example.com",
-        "subject": "=?? New Lead: {{ $('Process Reply').item.json.leadName }}",
+        "subject": "=🎉 New Lead: {{ $('Process Reply').item.json.leadName }}",
         "emailFormat": "text",
-        "text": "=New lead from One Step Fitness WhatsApp Bot!\n\nName: {{ $('Process Reply').item.json.leadName }}\nEmail: {{ $('Process Reply').item.json.leadEmail }}\nPhone: {{ $('Process Reply').item.json.leadPhone }}\nWhatsApp: {{ $('Process Reply').item.json.whatsappNumber }}\nTime: {{ new Date().toISOString() }}",
+        "text": "=New lead from Zumbaton WhatsApp Bot!\n\nName: {{ $('Process Reply').item.json.leadName }}\nEmail: {{ $('Process Reply').item.json.leadEmail }}\nPhone: {{ $('Process Reply').item.json.leadPhone }}\nWhatsApp: {{ $('Process Reply').item.json.whatsappNumber }}\nTime: {{ new Date().toISOString() }}",
         "options": {
           "appendAttribution": false
         }
@@ -646,7 +647,7 @@
     },
     {
       "id": "notify_lead_wa",
-      "name": "Notify Owner � New Lead",
+      "name": "Notify Owner — New Lead",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "position": [
@@ -656,7 +657,7 @@
       "parameters": {
         "to": "={{ $('Normalize Input').item.json.ownerPhoneNumber }}",
         "from": "={{ $('Normalize Input').item.json.to_phone }}",
-        "message": "=?? New One Step Fitness lead!\n\nName: {{ $('Process Reply').item.json.leadName }}\nEmail: {{ $('Process Reply').item.json.leadEmail }}\nPhone: {{ $('Process Reply').item.json.leadPhone }}\nWhatsApp: {{ $('Process Reply').item.json.whatsappNumber }}",
+        "message": "=🎉 New Zumbaton lead!\n\nName: {{ $('Process Reply').item.json.leadName }}\nEmail: {{ $('Process Reply').item.json.leadEmail }}\nPhone: {{ $('Process Reply').item.json.leadPhone }}\nWhatsApp: {{ $('Process Reply').item.json.whatsappNumber }}",
         "toWhatsapp": true,
         "options": {}
       },
@@ -701,7 +702,7 @@
     },
     {
       "id": "send_wa_lead",
-      "name": "Send WA � Lead Confirmed",
+      "name": "Send WA — Lead Confirmed",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "position": [
@@ -772,7 +773,7 @@
     },
     {
       "id": "notify_handover_wa",
-      "name": "Notify Owner � Handover",
+      "name": "Notify Owner — Handover",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "position": [
@@ -782,7 +783,7 @@
       "parameters": {
         "to": "={{ $('Normalize Input').item.json.ownerPhoneNumber }}",
         "from": "={{ $('Normalize Input').item.json.to_phone }}",
-        "message": "=?? Customer asked to speak with someone\n\n{{ $('Process Reply').item.json.whatsappNumber }}\n\nLast message: \"{{ $('Process Reply').item.json.userMsg }}\"\n\nThe bot is still chatting with them. Use your dashboard to start human takeover when you're ready.",
+        "message": "=🚨 Customer asked to speak with someone\n\n{{ $('Process Reply').item.json.whatsappNumber }}\n\nLast message: \"{{ $('Process Reply').item.json.userMsg }}\"\n\nThe bot is still chatting with them. Use your dashboard to start human takeover when you're ready.",
         "toWhatsapp": true,
         "options": {}
       },
@@ -795,7 +796,7 @@
     },
     {
       "id": "send_wa_handover",
-      "name": "Send WA � Handover",
+      "name": "Send WA — Handover",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "position": [
@@ -805,7 +806,7 @@
       "parameters": {
         "to": "={{ ($('Process Reply').item.json.from || $('Normalize Input').item.json.from).replace('whatsapp:', '') }}",
         "from": "={{ $('Normalize Input').item.json.to_phone }}",
-        "message": "={{ $('Process Reply').item.json.reply + \"\\n\\n\" + \"I've let our team know someone asked to speak with them � they can follow up when they're free. I'm still here if you want class times, pricing, or anything else in the meantime ??\" }}",
+        "message": "={{ $('Process Reply').item.json.reply + \"\\n\\n\" + \"I've let our team know someone asked to speak with them — they can follow up when they're free. I'm still here if you want class times, pricing, or anything else in the meantime 😊\" }}",
         "toWhatsapp": true,
         "options": {}
       },
@@ -818,7 +819,7 @@
     },
     {
       "id": "send_wa_normal",
-      "name": "Send WA � Normal Reply",
+      "name": "Send WA — Normal Reply",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
       "position": [
@@ -841,7 +842,7 @@
     },
     {
       "id": "note",
-      "name": "Sticky Note � v2 Setup",
+      "name": "Sticky Note — v2 Setup",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
@@ -852,20 +853,7 @@
         "width": 3500,
         "height": 320,
         "color": 4,
-        "content": "ONE STEP FITNESS WHATSAPP BOT v2 � Memory + Human Handover + Notifications\n\n?? CONFIG (node: Normalize Input) � no n8n Variables needed (Community Edition OK) ??\n  convexSiteBase ? full URL, e.g. https://fantastic-wolverine-819.eu-west-1.convex.site (no trailing slash)\n  botSecret ? same value as Convex WHATSAPP_BOT_HTTP_SECRET (leave empty only if Convex also has no secret � dev only)\n  defaultLeadOrgId ? org_zumbaton (or your org id for /dashboard filters)\n  ownerPhoneNumber ? owner's WhatsApp E.164 WITHOUT whatsapp: prefix\n\n?? TWILIO WHATSAPP FORMAT RULE ??\n  In Twilio send nodes, keep \"To Whatsapp\" enabled and use plain +E.164 for From/To (no whatsapp: prefix).\n\n?? CREDENTIALS (IMPORTANT) ??\n  Twilio trigger and all Twilio send nodes must use the SAME Twilio account that owns the WhatsApp sender.\n  If the sender is on another account/subaccount, sends fail even when number format is correct.\n\n?? HUMAN TAKEOVER ??\n  Real human_takeover in Convex is started from the /dashboard only.\n  If a customer asks for a human, n8n pings the owner (Notify Owner) but does NOT set takeover � the bot keeps replying until you take over from the dashboard.\n  Node \"Set Handover Status in Convex\" is disabled; enable only if you want auto-takeover again.\n\n?? OTHER PLACEHOLDERS ??\n  FROM_EMAIL / STUDIO_EMAIL ? SMTP Send Lead Email node\n\n?? CREDENTIALS ??\n  twilioApi � OpenRouter � SMTP\n\n?? CONVEX ??\n  Deploy: pnpm exec convex deploy\n  convex env set WHATSAPP_BOT_HTTP_SECRET (must match botSecret above in production)\n\n?? FLOW ??\n  Twilio ? Normalize (config here) ? Convex HTTP ? LLM ? save messages / ingest lead / email / WA\n  Vercel /dashboard/leads uses api.leads.list"
-      }
-    },
-    {
-      "id": "prep_kb_query",
-      "name": "Prepare KB Search Query",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -120,
-        100
-      ],
-      "parameters": {
-        "jsCode": "var trigger = $('Normalize Input').item.json;\nvar msg = (trigger.body || '').trim();\nvar histData = $input.item.json;\nvar messages = (histData && Array.isArray(histData.messages)) ? histData.messages : [];\n\nvar parts = [];\nvar userMsgs = messages.filter(function (m) {\n  return m.role === 'user';\n}).slice(-4);\n\nuserMsgs.forEach(function (m) {\n  if (m.content) {\n    parts.push(m.content);\n  }\n});\nif (msg) {\n  parts.push(msg);\n}\n\nvar searchQuery = parts.join(' ').trim();\n\n// Vague follow-ups like \"how much is it?\" — add context from earlier messages\nvar vaguePrice = /^(how much( is it)?|what'?s the price|price\\??|pricing|cost)[\\s?!.]*$/i.test(msg);\nif (vaguePrice && userMsgs.length > 0) {\n  searchQuery = (searchQuery + ' promotion trial duo pricing 1-for-1').trim();\n}\n\nif (searchQuery.length === 0) {\n  searchQuery = 'classes schedule pricing promotion trial duo';\n}\n\nreturn [{ json: { searchQuery: searchQuery.substring(0, 500) } }];\n"
+        "content": "ZUMBATON WHATSAPP BOT v2 — Memory + Human Handover + Notifications\n\n━━ CONFIG (node: Normalize Input) — no n8n Variables needed (Community Edition OK) ━━\n  convexSiteBase → full URL, e.g. https://fantastic-wolverine-819.eu-west-1.convex.site (no trailing slash)\n  botSecret → same value as Convex WHATSAPP_BOT_HTTP_SECRET (leave empty only if Convex also has no secret — dev only)\n  defaultLeadOrgId → org_zumbaton (or your org id for /dashboard filters)\n  ownerPhoneNumber → owner's WhatsApp E.164 WITHOUT whatsapp: prefix\n\n━━ TWILIO WHATSAPP FORMAT RULE ━━\n  In Twilio send nodes, keep \"To Whatsapp\" enabled and use plain +E.164 for From/To (no whatsapp: prefix).\n\n━━ CREDENTIALS (IMPORTANT) ━━\n  Twilio trigger and all Twilio send nodes must use the SAME Twilio account that owns the WhatsApp sender.\n  If the sender is on another account/subaccount, sends fail even when number format is correct.\n\n━━ HUMAN TAKEOVER ━━\n  Real human_takeover in Convex is started from the /dashboard only.\n  If a customer asks for a human, n8n pings the owner (Notify Owner) but does NOT set takeover — the bot keeps replying until you take over from the dashboard.\n  Node \"Set Handover Status in Convex\" is disabled; enable only if you want auto-takeover again.\n\n━━ OTHER PLACEHOLDERS ━━\n  FROM_EMAIL / STUDIO_EMAIL → SMTP Send Lead Email node\n\n━━ CREDENTIALS ━━\n  twilioApi · OpenRouter · SMTP\n\n━━ CONVEX ━━\n  Deploy: pnpm exec convex deploy\n  convex env set WHATSAPP_BOT_HTTP_SECRET (must match botSecret above in production)\n\n━━ FLOW ━━\n  Twilio → Normalize (config here) → Convex HTTP → LLM → save messages / ingest lead / email / WA\n  Vercel /dashboard/leads uses api.leads.list"
       }
     }
   ],
@@ -936,7 +924,7 @@
       "main": [
         [
           {
-            "node": "Send WA � HT Active",
+            "node": "Send WA — HT Active",
             "type": "main",
             "index": 0
           }
@@ -990,7 +978,7 @@
       "main": [
         [
           {
-            "node": "Attach Numbers � Media",
+            "node": "Attach Numbers — Media",
             "type": "main",
             "index": 0
           }
@@ -1001,7 +989,7 @@
       "main": [
         [
           {
-            "node": "Attach Numbers � Media",
+            "node": "Attach Numbers — Media",
             "type": "main",
             "index": 0
           }
@@ -1012,18 +1000,18 @@
       "main": [
         [
           {
-            "node": "Attach Numbers � Media",
+            "node": "Attach Numbers — Media",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Attach Numbers � Media": {
+    "Attach Numbers — Media": {
       "main": [
         [
           {
-            "node": "Send WA � Media",
+            "node": "Send WA — Media",
             "type": "main",
             "index": 0
           }
@@ -1034,7 +1022,7 @@
       "main": [
         [
           {
-            "node": "Prepare KB Search Query",
+            "node": "Search KB from Convex",
             "type": "main",
             "index": 0
           }
@@ -1129,14 +1117,14 @@
       "main": [
         [
           {
-            "node": "Notify Owner � New Lead",
+            "node": "Notify Owner — New Lead",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Notify Owner � New Lead": {
+    "Notify Owner — New Lead": {
       "main": [
         [
           {
@@ -1151,7 +1139,7 @@
       "main": [
         [
           {
-            "node": "Send WA � Lead Confirmed",
+            "node": "Send WA — Lead Confirmed",
             "type": "main",
             "index": 0
           }
@@ -1162,14 +1150,14 @@
       "main": [
         [
           {
-            "node": "Notify Owner � Handover",
+            "node": "Notify Owner — Handover",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Send WA � Normal Reply",
+            "node": "Send WA — Normal Reply",
             "type": "main",
             "index": 0
           }
@@ -1181,11 +1169,11 @@
         []
       ]
     },
-    "Notify Owner � Handover": {
+    "Notify Owner — Handover": {
       "main": [
         [
           {
-            "node": "Send WA � Handover",
+            "node": "Send WA — Handover",
             "type": "main",
             "index": 0
           }
@@ -1197,17 +1185,6 @@
         [
           {
             "node": "Build Prompt",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare KB Search Query": {
-      "main": [
-        [
-          {
-            "node": "Search KB from Convex",
             "type": "main",
             "index": 0
           }

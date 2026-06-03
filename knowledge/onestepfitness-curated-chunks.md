@@ -44,11 +44,11 @@ Trial promos: onestepfitness.sg/promos
 ```
 One Step Fitness adult packages (dance fitness & studio classes):
 
-Single Session: $30.00 SGD (1 token, valid 1 week)
-4 Session Pack: $99.00 SGD (4 tokens, valid 1 month)
-8 Session Pack — Most Popular: $185.00 SGD (8 tokens, valid 2 months)
-10 Session Pack: $225.00 SGD (10 tokens, valid 2 months)
-12 Session Pack — Best Value: $265.00 SGD (12 tokens, valid 3 months)
+Single Session: $30.00 SGD (1 token, valid 1 month)
+4 Session Pack (Most Popular): $99.00 SGD (4 tokens, valid 1 month)
+8 Session Pack: $185.00 SGD (8 tokens, valid 1 month)
+10 Session Pack: $225.00 SGD (10 tokens, valid 1 month)
+Unlimited Session Pack: $265.00 SGD (unlimited tokens, valid 1 month)
 
 All class types included. Book at onestepfitness.sg/pricing
 ```
@@ -63,11 +63,10 @@ All class types included. Book at onestepfitness.sg/pricing
 ```
 One Step Fitness kids packages (ages 5–12, must be accompanied by parent/guardian):
 
-Single Session: $20.00 SGD (1 token, valid 1 week)
-Kids 4 Session Pack: $74.00 SGD (4 tokens, valid 1 month)
-Kids 8 Session Pack: $110.00 SGD (8 tokens, valid 2 months)
+Single Session: $20.00 SGD (1 token, valid 1 month)
+Kids 4 Session Pack (Most Popular): $75.00 SGD (4 tokens, valid 1 month)
 
-Class: Lil Steppers (kids dance fitness). Book at onestepfitness.sg/pricing
+Parent/guardian required. All class types included. Book at onestepfitness.sg/pricing
 ```
 
 ---
@@ -128,7 +127,7 @@ Book at onestepfitness.sg/promos
 ```
 One Step Fitness studio:
 Address: 2 Jalan Klapa, #2-A, Singapore 199314 (Kampong Glam area)
-Hours: Monday–Sunday, 9:00 AM – 9:00 PM
+Hours: 8AM – 9PM daily
 Phone: +65 8492 7347
 Email: hello@onestepfitness.sg
 Website: onestepfitness.sg

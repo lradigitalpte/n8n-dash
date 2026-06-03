@@ -41,7 +41,7 @@ export function MessageBubble({ message, onUpdate, onDelete }: MessageBubbleProp
     <div className={cn("group flex w-full", isInbound ? "justify-start" : "justify-end")}>
       <div
         className={cn(
-          "relative max-w-[min(85%,20rem)] rounded-lg px-2.5 py-1.5 text-sm leading-snug shadow-sm md:px-3 md:py-2",
+          "relative max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-snug shadow-sm md:max-w-[65%] md:px-4 md:py-2.5",
           isInbound
             ? "rounded-tl-md bg-muted text-foreground"
             : "rounded-tr-md bg-emerald-600 text-white dark:bg-emerald-700",
@@ -65,7 +65,7 @@ export function MessageBubble({ message, onUpdate, onDelete }: MessageBubbleProp
             src={message.audioUrl}
             controls
             className={cn(
-              "mb-1 mt-0.5 h-9 w-full min-w-[200px] max-w-full",
+              "mb-1 mt-0.5 h-9 w-full min-w-50 max-w-full",
               !isInbound && "[&::-webkit-media-controls-panel]:bg-emerald-800/90",
             )}
             preload="metadata"
@@ -79,7 +79,7 @@ export function MessageBubble({ message, onUpdate, onDelete }: MessageBubbleProp
               onChange={(e) => setDraft(e.target.value)}
               rows={3}
               className={cn(
-                "min-h-[4rem] resize-y text-sm",
+                "min-h-16 resize-y text-sm",
                 !isInbound && "border-emerald-500/50 bg-emerald-800/40 text-white placeholder:text-emerald-200/60",
               )}
             />
@@ -93,7 +93,7 @@ export function MessageBubble({ message, onUpdate, onDelete }: MessageBubbleProp
             </div>
           </div>
         ) : message.content.trim() ? (
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          <p className="whitespace-pre-wrap wrap-break-word">{message.content}</p>
         ) : null}
 
         <p

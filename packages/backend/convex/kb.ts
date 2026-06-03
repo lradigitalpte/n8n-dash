@@ -87,7 +87,11 @@ function foldBizTerms(s: string): string {
     .replace(/\b(schedules?)\b/g, "schedule")
     .replace(/\b(locations?|address|venue)\b/g, "location")
     .replace(/\b(bookings?|booked|trial|promo|promotion|duo|special)\b/g, "book")
-    .replace(/\b(classes?)\b/g, "class");
+    .replace(/\b(classes?)\b/g, "class")
+    .replace(/\b(refunds?|refundable|reimburs\w*)\b/g, "refund")
+    .replace(/\b(cancell?ations?|cancel|cancelled|no.?show|noshow|forfeit\w*)\b/g, "cancel")
+    .replace(/\b(dress\s*code|attire|wear|shoes?|footwear|outfit|cloth\w*)\b/g, "attire")
+    .replace(/\b(reschedul\w*|swap|chang\w* class|transfer)\b/g, "cancel");
 }
 
 /** Search KB chunks: word overlap + synonym folding + fallback to newest chunks. */
@@ -137,6 +141,13 @@ async function searchKbChunks(
   const isPromoQuery =
     /\b(promo|promotion|trial|duo|1-for-1|special|offer|running)\b/i.test(raw) ||
     raw.includes("too good to be true");
+  const isRefundQuery =
+    /\b(refund|refundable|cancel|cancellation|no.?show|forfeit|money back|get.*back)\b/i.test(raw) ||
+    foldedQuery.includes("refund") ||
+    foldedQuery.includes("cancel");
+  const isAttireQuery =
+    /\b(wear|attire|dress\s*code|shoes?|outfit|cloth\w*|come\s*in|bring)\b/i.test(raw) ||
+    foldedQuery.includes("attire");
 
   const scored = all.map((item) => {
     const title = item.title.toLowerCase();
@@ -209,6 +220,45 @@ async function searchKbChunks(
       }
       if (title.includes("lil steppers") && (raw.includes("kid") || raw.includes("lil"))) {
         score += 8;
+      }
+    }
+
+    if (isRefundQuery) {
+      if (
+        foldedText.includes("refund") ||
+        foldedText.includes("cancel") ||
+        text.includes("non-refundable") ||
+        text.includes("no show") ||
+        text.includes("forfeited") ||
+        text.includes("token refund")
+      ) {
+        score += 18;
+      }
+      if (
+        title.includes("refund") ||
+        title.includes("cancel") ||
+        title.includes("bookings") ||
+        title.includes("terms")
+      ) {
+        score += 12;
+      }
+      if (cat.includes("policy") || cat.includes("general")) {
+        score += 6;
+      }
+    }
+
+    if (isAttireQuery) {
+      if (
+        foldedText.includes("attire") ||
+        text.includes("covered shoes") ||
+        text.includes("sportswear") ||
+        text.includes("dress code") ||
+        text.includes("wear")
+      ) {
+        score += 18;
+      }
+      if (title.includes("attire") || title.includes("dress") || title.includes("wear")) {
+        score += 12;
       }
     }
 

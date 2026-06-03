@@ -234,6 +234,29 @@ export const queueOutboundMessage = mutation({
   },
 });
 
+export const updateDisplayName = mutation({
+  args: {
+    orgId: v.string(),
+    phone: v.string(),
+    displayName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    ensureAuthenticated(user);
+    const name = args.displayName.trim();
+    if (!name) throw new Error("Name cannot be empty");
+    const existing = await ctx.db
+      .query("conversations")
+      .withIndex("by_org_phone", (q) =>
+        q.eq("orgId", args.orgId).eq("phone", args.phone),
+      )
+      .unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, { displayName: name });
+    }
+  },
+});
+
 export const claimOutboundMessages = internalMutation({
   args: { limit: v.number() },
   handler: async (ctx, args) => {
